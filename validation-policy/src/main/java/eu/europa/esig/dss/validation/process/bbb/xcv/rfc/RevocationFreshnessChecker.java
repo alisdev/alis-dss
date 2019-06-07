@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.bbb.xcv.rfc;
 
 import java.util.Date;
@@ -12,16 +32,19 @@ import eu.europa.esig.dss.validation.process.bbb.sav.checks.CryptographicCheck;
 import eu.europa.esig.dss.validation.process.bbb.xcv.rfc.checks.NextUpdateCheck;
 import eu.europa.esig.dss.validation.process.bbb.xcv.rfc.checks.RevocationDataAvailableCheck;
 import eu.europa.esig.dss.validation.process.bbb.xcv.rfc.checks.RevocationDataFreshCheck;
+import eu.europa.esig.dss.validation.process.bbb.xcv.rfc.checks.RevocationDataFreshCheckWithNullConstraint;
 import eu.europa.esig.dss.validation.reports.wrapper.RevocationWrapper;
 import eu.europa.esig.jaxb.policy.CryptographicConstraint;
 import eu.europa.esig.jaxb.policy.LevelConstraint;
+import eu.europa.esig.jaxb.policy.TimeConstraint;
 
 /**
- * 5.2.5 Revocation freshness checker This building block checks that a given revocation status information is "fresh"
- * at a given validation time. The freshness
- * of the revocation status information is the maximum accepted difference between the issuance time of the revocation
- * status information and the current time.
- * This process is used by other validation blocks when checking the revocation status of a certificate.
+ * 5.2.5 Revocation freshness checker This building block checks that a given
+ * revocation status information is "fresh" at a given validation time. The
+ * freshness of the revocation status information is the maximum accepted
+ * difference between the issuance time of the revocation status information and
+ * the current time. This process is used by other validation blocks when
+ * checking the revocation status of a certificate.
  */
 public class RevocationFreshnessChecker extends Chain<XmlRFC> {
 
@@ -49,27 +72,32 @@ public class RevocationFreshnessChecker extends Chain<XmlRFC> {
 		ChainItem<XmlRFC> item = firstItem = revocationDataAvailable(revocationData);
 
 		if (revocationData != null) {
+
+			result.setId(revocationData.getId());
+
 			/*
-			 * 1) The building block shall get the maximum accepted revocation freshness from the X.509 validation
-			 * constraints for the given certificate. If the
-			 * constraints do not contain a value for the maximum accepted revocation freshness and the revocation
-			 * information status is a CRL or an OCSP response
-			 * IETF RFC 5280 [1], IETF RFC 6960 [i.12] with a value in the nextUpdate field the time interval between
-			 * the
-			 * fields thisUpdate and nextUpdate shall be
-			 * used as the value of maximum freshness. If nextUpdate is not set, the building block shall return with
-			 * the
-			 * indication FAILED.
+			 * 1) The building block shall get the maximum accepted revocation
+			 * freshness from the X.509 validation constraints for the given
+			 * certificate. If the constraints do not contain a value for the
+			 * maximum accepted revocation freshness and the revocation
+			 * information status is a CRL or an OCSP response IETF RFC 5280
+			 * [1], IETF RFC 6960 [i.12] with a value in the nextUpdate field
+			 * the time interval between the fields thisUpdate and nextUpdate
+			 * shall be used as the value of maximum freshness. If nextUpdate is
+			 * not set, the building block shall return with the indication
+			 * FAILED.
 			 * 
-			 * NOTE: This means that if the given validation time is after the nextUpdate time, the revocation status
-			 * information will not be considered fresh.
+			 * NOTE: This means that if the given validation time is after the
+			 * nextUpdate time, the revocation status information will not be
+			 * considered fresh.
 			 */
 			item = item.setNextItem(nextUpdateCheck(revocationData));
 
 			/*
-			 * 2) If the issuance time of the revocation information status is after the validation time minus the
-			 * considered maximum freshness, the building block
-			 * shall return the indication PASSED. Otherwise the building block shall return the indication FAILED.
+			 * 2) If the issuance time of the revocation information status is
+			 * after the validation time minus the considered maximum freshness,
+			 * the building block shall return the indication PASSED. Otherwise
+			 * the building block shall return the indication FAILED.
 			 */
 			item = item.setNextItem(revocationDataFreshCheck(revocationData));
 
@@ -88,7 +116,27 @@ public class RevocationFreshnessChecker extends Chain<XmlRFC> {
 	}
 
 	private ChainItem<XmlRFC> revocationDataFreshCheck(RevocationWrapper revocationData) {
-		return new RevocationDataFreshCheck(result, revocationData, validationDate, policy.getRevocationFreshnessConstraint());
+		TimeConstraint timeConstraint = policy.getRevocationFreshnessConstraint();
+		/*
+		 * The building block shall get the maximum accepted revocation
+		 * freshness from the X.509 validation constraints for the given
+		 * certificate.
+		 */
+		if (timeConstraint != null) {
+			return new RevocationDataFreshCheck(result, revocationData, validationDate, timeConstraint);
+		}
+		/*
+		 * If the constraints do not contain a value for the maximum accepted
+		 * revocation freshness and the revocation information status is a CRL
+		 * or an OCSP response IETF RFC 5280 [1], IETF RFC 6960 [i.12] with a
+		 * value in the nextUpdate field the time interval between the fields
+		 * thisUpdate and nextUpdate shall be used as the value of maximum
+		 * freshness.
+		 */
+		else {
+			return new RevocationDataFreshCheckWithNullConstraint(result, revocationData, validationDate, getFailLevelConstraint());
+		}
+
 	}
 
 	private ChainItem<XmlRFC> revocationCryptographic(RevocationWrapper revocationData) {

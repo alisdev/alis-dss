@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -26,8 +26,6 @@ import java.util.List;
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 import javax.xml.crypto.dsig.XMLSignature;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
 import org.apache.xml.security.transforms.Transforms;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -35,8 +33,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import eu.europa.esig.dss.DSSDocument;
-import eu.europa.esig.dss.DSSException;
+import eu.europa.esig.dss.DigestAlgorithm;
+import eu.europa.esig.dss.DomUtils;
 import eu.europa.esig.dss.InMemoryDocument;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.xades.DSSReference;
 import eu.europa.esig.dss.xades.DSSTransform;
@@ -72,28 +72,31 @@ class EnvelopedSignatureBuilder extends XAdESSignatureBuilder {
 	 */
 	@Override
 	protected Document buildRootDocumentDom() {
-		return DSSXMLUtils.buildDOM(detachedDocument);
+		return DomUtils.buildDOM(detachedDocument);
 	}
 
 	@Override
 	protected Node getParentNodeOfSignature() {
 		final String xPathLocationString = params.getXPathLocationString();
-		if (StringUtils.isNotEmpty(xPathLocationString)) {
-			return DSSXMLUtils.getElement(documentDom, xPathLocationString);
+		if (Utils.isStringNotEmpty(xPathLocationString)) {
+			return DomUtils.getElement(documentDom, xPathLocationString);
 		}
 		return documentDom.getDocumentElement();
 	}
 
 	@Override
-	protected List<DSSReference> createDefaultReferences() {
-
-		final List<DSSReference> dssReferences = new ArrayList<DSSReference>();
+	protected DSSReference createReference(DSSDocument document, int referenceIndex) {
 
 		DSSReference dssReference = new DSSReference();
-		dssReference.setId("r-id-1");
+		dssReference.setId("r-id-" + referenceIndex);
+		// XMLDSIG : 4.4.3.2
+		// URI=""
+		// Identifies the node-set (minus any comment nodes) of the XML resource
+		// containing the signature
 		dssReference.setUri("");
-		dssReference.setContents(detachedDocument);
-		dssReference.setDigestMethodAlgorithm(params.getDigestAlgorithm());
+		dssReference.setContents(document);
+		DigestAlgorithm digestAlgorithm = params.getReferenceDigestAlgorithm() != null ? params.getReferenceDigestAlgorithm() : params.getDigestAlgorithm();
+		dssReference.setDigestMethodAlgorithm(digestAlgorithm);
 
 		final List<DSSTransform> dssTransformList = new ArrayList<DSSTransform>();
 
@@ -111,9 +114,8 @@ class EnvelopedSignatureBuilder extends XAdESSignatureBuilder {
 		dssTransformList.add(dssTransform);
 
 		dssReference.setTransforms(dssTransformList);
-		dssReferences.add(dssReference);
 
-		return dssReferences;
+		return dssReference;
 	}
 
 	/**
@@ -130,7 +132,7 @@ class EnvelopedSignatureBuilder extends XAdESSignatureBuilder {
 
 		DSSDocument dssDocument = reference.getContents();
 		final List<DSSTransform> transforms = reference.getTransforms();
-		if (CollectionUtils.isEmpty(transforms)) {
+		if (Utils.isCollectionEmpty(transforms)) {
 			return dssDocument;
 		}
 
@@ -140,47 +142,15 @@ class EnvelopedSignatureBuilder extends XAdESSignatureBuilder {
 		Node nodeToTransform = null;
 		final String uri = reference.getUri();
 		// Check if the reference is related to the whole document
-		if (StringUtils.isNotBlank(uri) && uri.startsWith("#") && !isXPointer(uri)) {
+		if (Utils.isStringNotBlank(uri) && uri.startsWith("#") && !isXPointer(uri)) {
 
-			final Document document = DSSXMLUtils.buildDOM(dssDocument);
+			final Document document = DomUtils.buildDOM(dssDocument);
 			DSSXMLUtils.recursiveIdBrowse(document.getDocumentElement());
 			final String uri_id = uri.substring(1);
 			nodeToTransform = document.getElementById(uri_id);
 		}
 		byte[] transformedReferenceBytes = applyTransformations(dssDocument, transforms, nodeToTransform);
 		return new InMemoryDocument(transformedReferenceBytes);
-	}
-
-	private byte[] applyTransformations(DSSDocument dssDocument, final List<DSSTransform> transforms, Node nodeToTransform) {
-		byte[] transformedReferenceBytes = null;
-		for (final DSSTransform transform : transforms) {
-
-			final String transformAlgorithm = transform.getAlgorithm();
-			if (Transforms.TRANSFORM_XPATH.equals(transformAlgorithm)) {
-
-				final DSSTransformXPath transformXPath = new DSSTransformXPath(transform);
-				// At the moment it is impossible to go through a medium other than byte array (Set<Node>, octet stream,
-				// Node). Further investigation is needed.
-				final byte[] transformedBytes = nodeToTransform == null ? transformXPath.transform(dssDocument) : transformXPath.transform(nodeToTransform);
-				dssDocument = new InMemoryDocument(transformedBytes);
-				nodeToTransform = DSSXMLUtils.buildDOM(dssDocument);
-			} else if (DSSXMLUtils.canCanonicalize(transformAlgorithm)) {
-
-				if (nodeToTransform == null) {
-					nodeToTransform = DSSXMLUtils.buildDOM(dssDocument);
-				}
-				transformedReferenceBytes = DSSXMLUtils.canonicalizeSubtree(transformAlgorithm, nodeToTransform);
-				// The supposition is made that the last transformation is the canonicalization
-				break;
-			} else if (CanonicalizationMethod.ENVELOPED.equals(transformAlgorithm)) {
-
-				// do nothing the new signature is not existing yet!
-				// removeExistingSignatures(document);
-			} else {
-				throw new DSSException("The transformation is not implemented yet, please transform the reference before signing!");
-			}
-		}
-		return transformedReferenceBytes;
 	}
 
 	private static boolean isXPointer(final String uri) {

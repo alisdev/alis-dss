@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -22,20 +22,20 @@ package eu.europa.esig.dss.cades.signature;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import javax.crypto.Cipher;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -53,31 +53,30 @@ import org.bouncycastle.asn1.cms.SignerInfo;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x509.DigestInfo;
 import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import eu.europa.esig.dss.DSSASN1Utils;
 import eu.europa.esig.dss.DSSDocument;
 import eu.europa.esig.dss.DSSUtils;
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.InMemoryDocument;
 import eu.europa.esig.dss.MimeType;
-import eu.europa.esig.dss.SignatureAlgorithm;
 import eu.europa.esig.dss.SignatureLevel;
 import eu.europa.esig.dss.SignaturePackaging;
+import eu.europa.esig.dss.SignerLocation;
 import eu.europa.esig.dss.cades.CAdESSignatureParameters;
 import eu.europa.esig.dss.cades.validation.CAdESSignature;
-import eu.europa.esig.dss.signature.AbstractTestSignature;
+import eu.europa.esig.dss.signature.AbstractPkiFactoryTestDocumentSignatureService;
 import eu.europa.esig.dss.signature.DocumentSignatureService;
-import eu.europa.esig.dss.test.gen.CertificateService;
-import eu.europa.esig.dss.test.mock.MockPrivateKeyEntry;
-import eu.europa.esig.dss.validation.CertificateVerifier;
-import eu.europa.esig.dss.validation.CommonCertificateVerifier;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.validation.reports.wrapper.DiagnosticData;
+import eu.europa.esig.dss.validation.reports.wrapper.SignatureWrapper;
+import eu.europa.esig.dss.x509.CertificateToken;
 
-public class CAdESLevelBTest extends AbstractTestSignature {
+public class CAdESLevelBTest extends AbstractPkiFactoryTestDocumentSignatureService<CAdESSignatureParameters> {
 
 	private static final String HELLO_WORLD = "Hello World";
 
@@ -86,25 +85,44 @@ public class CAdESLevelBTest extends AbstractTestSignature {
 	private DocumentSignatureService<CAdESSignatureParameters> service;
 	private CAdESSignatureParameters signatureParameters;
 	private DSSDocument documentToSign;
-	private MockPrivateKeyEntry privateKeyEntry;
 
 	@Before
 	public void init() throws Exception {
 		documentToSign = new InMemoryDocument(HELLO_WORLD.getBytes());
 
-		CertificateService certificateService = new CertificateService();
-		privateKeyEntry = certificateService.generateCertificateChain(SignatureAlgorithm.RSA_SHA256);
-
 		signatureParameters = new CAdESSignatureParameters();
 		signatureParameters.bLevel().setSigningDate(new Date());
-		signatureParameters.setSigningCertificate(privateKeyEntry.getCertificate());
-		signatureParameters.setCertificateChain(privateKeyEntry.getCertificateChain());
+
+		SignerLocation signerLocation = new SignerLocation();
+		signerLocation.setCountry("LU");
+		signerLocation.setLocality("Kehlen");
+		signerLocation.setPostalAddress(Arrays.asList("Line1", "Line2"));
+		signatureParameters.bLevel().setSignerLocation(signerLocation);
+
+		signatureParameters.bLevel().setClaimedSignerRoles(Arrays.asList("supplier"));
+		signatureParameters.bLevel().setCommitmentTypeIndications(Arrays.asList("1.2.3", "2.4.5.6"));
+
+		signatureParameters.setContentHintsType("1.2.840.113549.1.7.1");
+		signatureParameters.setContentHintsDescription("text/plain");
+		signatureParameters.setContentIdentifierPrefix("TEST-PREFIX");
+		// signatureParameters.setContentIdentifierSuffix("TEST-SUFFIX");
+
+		signatureParameters.setSigningCertificate(getSigningCert());
+		signatureParameters.setCertificateChain(getCertificateChain());
 		signatureParameters.setSignaturePackaging(SignaturePackaging.ENVELOPING);
 		signatureParameters.setSignatureLevel(SignatureLevel.CAdES_BASELINE_B);
 
-		CertificateVerifier certificateVerifier = new CommonCertificateVerifier();
-		service = new CAdESService(certificateVerifier);
+		service = new CAdESService(getCompleteCertificateVerifier());
 
+	}
+
+	@Override
+	protected void verifyDiagnosticData(DiagnosticData diagnosticData) {
+		super.verifyDiagnosticData(diagnosticData);
+
+		SignatureWrapper signature = diagnosticData.getSignatureById(diagnosticData.getFirstSignatureId());
+		assertTrue(Utils.isStringNotBlank(signature.getContentHints()));
+		assertTrue(Utils.isStringNotBlank(signature.getContentIdentifier()));
 	}
 
 	@Override
@@ -150,14 +168,13 @@ public class CAdESLevelBTest extends AbstractTestSignature {
 				logger.info("SEQ cert " + i + " : " + seqCertif);
 
 				X509CertificateHolder certificateHolder = new X509CertificateHolder(seqCertif.getEncoded());
-				X509Certificate certificate = new JcaX509CertificateConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME)
-						.getCertificate(certificateHolder);
-
-				certificate.checkValidity();
+				CertificateToken certificate = DSSASN1Utils.getCertificate(certificateHolder);
+				X509Certificate x509Certificate = certificate.getCertificate();
+				x509Certificate.checkValidity();
 
 				logger.info("Cert " + i + " : " + certificate);
 
-				foundCertificates.add(certificate);
+				foundCertificates.add(x509Certificate);
 			}
 
 			ASN1Set crLs = signedData.getCRLs();
@@ -231,7 +248,7 @@ public class CAdESLevelBTest extends AbstractTestSignature {
 
 			logger.info("Nb Auth Attributes : " + authenticatedAttributes.size());
 
-			String embeddedDigest = StringUtils.EMPTY;
+			String embeddedDigest = "";
 			for (int i = 0; i < authenticatedAttributes.size(); i++) {
 				ASN1Sequence authAttrSeq = ASN1Sequence.getInstance(authenticatedAttributes.getObjectAt(i));
 				logger.info(authAttrSeq.toString());
@@ -261,20 +278,20 @@ public class CAdESLevelBTest extends AbstractTestSignature {
 			DigestInfo digestInfo = new DigestInfo(seqDecrypt);
 			assertEquals(oidDigestAlgo, digestInfo.getAlgorithmId().getAlgorithm());
 
-			String decryptedDigestEncodeBase64 = Base64.encodeBase64String(digestInfo.getDigest());
+			String decryptedDigestEncodeBase64 = Utils.toBase64(digestInfo.getDigest());
 			logger.info("Decrypted Base64 : " + decryptedDigestEncodeBase64);
 
 			byte[] encoded = signedInfo.getAuthenticatedAttributes().getEncoded();
 			MessageDigest messageDigest = MessageDigest.getInstance(DigestAlgorithm.SHA256.getName());
 			byte[] digestOfAuthenticatedAttributes = messageDigest.digest(encoded);
 
-			String computedDigestEncodeBase64 = Base64.encodeBase64String(digestOfAuthenticatedAttributes);
+			String computedDigestEncodeBase64 = Utils.toBase64(digestOfAuthenticatedAttributes);
 			logger.info("Computed Base64 : " + computedDigestEncodeBase64);
 
 			assertEquals(decryptedDigestEncodeBase64, computedDigestEncodeBase64);
 
-			IOUtils.closeQuietly(asn1sInput);
-			IOUtils.closeQuietly(inputDecrypted);
+			Utils.closeQuietly(asn1sInput);
+			Utils.closeQuietly(inputDecrypted);
 		} catch (Exception e) {
 			logger.error(e.getMessage(), e);
 			fail(e.getMessage());
@@ -312,8 +329,13 @@ public class CAdESLevelBTest extends AbstractTestSignature {
 	}
 
 	@Override
-	protected MockPrivateKeyEntry getPrivateKeyEntry() {
-		return privateKeyEntry;
+	protected List<DSSDocument> getOriginalDocuments() {
+		return Collections.singletonList(getDocumentToSign());
+	}
+
+	@Override
+	protected String getSigningAlias() {
+		return GOOD_USER;
 	}
 
 }

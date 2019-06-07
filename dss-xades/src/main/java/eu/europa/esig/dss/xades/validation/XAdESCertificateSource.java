@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -22,8 +22,8 @@ package eu.europa.esig.dss.xades.validation;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-import org.apache.commons.codec.binary.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Element;
@@ -31,10 +31,11 @@ import org.w3c.dom.NodeList;
 
 import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.DSSUtils;
+import eu.europa.esig.dss.DomUtils;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.x509.CertificatePool;
 import eu.europa.esig.dss.x509.CertificateToken;
 import eu.europa.esig.dss.x509.SignatureCertificateSource;
-import eu.europa.esig.dss.xades.DSSXMLUtils;
 import eu.europa.esig.dss.xades.XPathQueryHolder;
 
 /**
@@ -47,12 +48,8 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 
 	private final Element signatureElement;
 
-	private final XPathQueryHolder xPathQueryHolder;
-
 	private List<CertificateToken> keyInfoCerts;
-
 	private List<CertificateToken> encapsulatedCerts;
-
 	private List<CertificateToken> timestampValidationDataCerts;
 
 	/**
@@ -66,26 +63,15 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 	 *            {@code CertificatePool} to use to declare the found certificates
 	 */
 	public XAdESCertificateSource(final Element signatureElement, final XPathQueryHolder xPathQueryHolder, final CertificatePool certificatePool) {
-
 		super(certificatePool);
-		if (signatureElement == null) {
+		Objects.requireNonNull(signatureElement, "Element signature must not be null");
+		Objects.requireNonNull(xPathQueryHolder, "XPathQueryHolder must not be null");
 
-			throw new NullPointerException();
-		}
-		if (xPathQueryHolder == null) {
-
-			throw new NullPointerException();
-		}
 		this.signatureElement = signatureElement;
-		this.xPathQueryHolder = xPathQueryHolder;
 
-		if (certificateTokens == null) {
-
-			certificateTokens = new ArrayList<CertificateToken>();
-			encapsulatedCerts = getCertificates(xPathQueryHolder.XPATH_ENCAPSULATED_X509_CERTIFICATE);
-			keyInfoCerts = getCertificates(xPathQueryHolder.XPATH_KEY_INFO_X509_CERTIFICATE);
-			timestampValidationDataCerts = getCertificates(xPathQueryHolder.XPATH_TSVD_ENCAPSULATED_X509_CERTIFICATE);
-		}
+		encapsulatedCerts = getCertificates(xPathQueryHolder.XPATH_ENCAPSULATED_X509_CERTIFICATE);
+		keyInfoCerts = getCertificates(xPathQueryHolder.XPATH_KEY_INFO_X509_CERTIFICATE);
+		timestampValidationDataCerts = getCertificates(xPathQueryHolder.XPATH_TSVD_ENCAPSULATED_X509_CERTIFICATE);
 
 		if (LOG.isInfoEnabled()) {
 			LOG.info("+XAdESCertificateSource");
@@ -93,30 +79,29 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 	}
 
 	/**
+	 * This method extracts certificates from the given xpath query
+	 * 
 	 * @param xPathQuery
 	 *            XPath query
-	 * @return
+	 * @return a list of {@code CertificateToken}
 	 */
 	private List<CertificateToken> getCertificates(final String xPathQuery) {
 
 		final List<CertificateToken> list = new ArrayList<CertificateToken>();
-		final NodeList nodeList = DSSXMLUtils.getNodeList(signatureElement, xPathQuery);
+		final NodeList nodeList = DomUtils.getNodeList(signatureElement, xPathQuery);
 		for (int ii = 0; ii < nodeList.getLength(); ii++) {
 
 			final Element certificateElement = (Element) nodeList.item(ii);
 
-			final byte[] derEncoded = Base64.decodeBase64(certificateElement.getTextContent());
+			final byte[] derEncoded = Utils.fromBase64(certificateElement.getTextContent());
 			try {
 				final CertificateToken cert = DSSUtils.loadCertificate(derEncoded);
 				final CertificateToken certToken = addCertificate(cert);
 				if (!list.contains(certToken)) {
-
-					final String idIdentifier = DSSXMLUtils.getIDIdentifier(certificateElement);
-					certToken.setXmlId(idIdentifier);
 					list.add(certToken);
 				}
 			} catch (Exception e) {
-				LOG.warn("Unable to parse certificate '" + certificateElement.getTextContent() + "' : " + e.getMessage());
+				LOG.warn("Unable to parse certificate '{}' : {}", certificateElement.getTextContent(), e.getMessage());
 			}
 		}
 		return list;
@@ -130,7 +115,6 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 	 */
 	@Override
 	public List<CertificateToken> getEncapsulatedCertificates() throws DSSException {
-
 		return encapsulatedCerts;
 	}
 
@@ -141,7 +125,6 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 	 */
 	@Override
 	public List<CertificateToken> getKeyInfoCertificates() throws DSSException {
-
 		return keyInfoCerts;
 	}
 
@@ -152,7 +135,6 @@ public class XAdESCertificateSource extends SignatureCertificateSource {
 	 * @throws eu.europa.esig.dss.DSSException
 	 */
 	public List<CertificateToken> getTimestampCertificates() throws DSSException {
-
 		return timestampValidationDataCerts;
 	}
 }

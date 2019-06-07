@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.vpfltvd;
 
 import java.util.Date;
@@ -6,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +37,7 @@ import eu.europa.esig.dss.jaxb.detailedreport.XmlSignature;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlStatus;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlValidationProcessLongTermData;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlValidationProcessTimestamps;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.policy.Context;
 import eu.europa.esig.dss.validation.policy.ValidationPolicy;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
@@ -38,13 +57,15 @@ import eu.europa.esig.dss.validation.reports.wrapper.DiagnosticData;
 import eu.europa.esig.dss.validation.reports.wrapper.RevocationWrapper;
 import eu.europa.esig.dss.validation.reports.wrapper.SignatureWrapper;
 import eu.europa.esig.dss.validation.reports.wrapper.TimestampWrapper;
+import eu.europa.esig.dss.x509.TimestampType;
+import eu.europa.esig.jaxb.policy.LevelConstraint;
 
 /**
  * 5.5 Validation process for Signatures with Time and Signatures with Long-Term Validation Data
  */
 public class ValidationProcessForSignaturesWithLongTermValidationData extends Chain<XmlValidationProcessLongTermData> {
 
-	private static final Logger logger = LoggerFactory.getLogger(ValidationProcessForSignaturesWithLongTermValidationData.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ValidationProcessForSignaturesWithLongTermValidationData.class);
 
 	private final XmlConstraintsConclusion basicSignatureValidation;
 	private final List<XmlValidationProcessTimestamps> timestampValidations;
@@ -96,13 +117,13 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 		ChainItem<XmlValidationProcessLongTermData> item = firstItem = isAcceptableBasicSignatureValidation();
 
 		Set<RevocationWrapper> revocationData = getLinkedRevocationData();
-		if (CollectionUtils.isNotEmpty(revocationData)) {
+		if (Utils.isCollectionNotEmpty(revocationData)) {
 			for (RevocationWrapper revocation : revocationData) {
 				XmlBasicBuildingBlocks revocationBBB = bbbs.get(revocation.getId());
 				if (revocationBBB != null) {
 					item = item.setNextItem(revocationBasicBuildingBlocksValid(revocationBBB));
 				} else {
-					logger.warn("No BBB found for revocation " + revocation.getId());
+					LOG.warn("No BBB found for revocation : {}", revocation.getId());
 				}
 			}
 		}
@@ -113,9 +134,9 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 		 * message imprint has been generated according to the corresponding signature format specification
 		 * verification. If the verification fails, the process shall remove the token from the set.
 		 */
-		Set<TimestampWrapper> allowedTimestamps = filterInvalidTimestamps(currentSignature.getTimestampList());
+		Set<TimestampWrapper> allowedTimestamps = filterValidSignatureTimestamps(currentSignature.getTimestampList());
 
-		if (CollectionUtils.isNotEmpty(allowedTimestamps)) {
+		if (Utils.isCollectionNotEmpty(allowedTimestamps)) {
 
 			/*
 			 * b) Time-stamp token validation: For each time-stamp token remaining in the set of signature time-stamp
@@ -166,7 +187,7 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 			item = item.setNextItem(algorithmReliableAtBestSignatureTime(bestSignatureTime));
 		}
 
-		if (CollectionUtils.isNotEmpty(allowedTimestamps)) {
+		if (Utils.isCollectionNotEmpty(allowedTimestamps)) {
 			/*
 			 * d) For each time-stamp token remaining in the set of signature time-stamp tokens, the process shall check
 			 * the coherence in the values of the times indicated in the time-stamp tokens. They shall be posterior to
@@ -178,7 +199,7 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 			 * the process shall go to the next step. Otherwise the process shall return the indication FAILED with the
 			 * sub-indication TIMESTAMP_ORDER_FAILURE.
 			 */
-			item = item.setNextItem(timestampCoherenceOrder(allowedTimestamps));
+			item = item.setNextItem(timestampCoherenceOrder(currentSignature.getTimestampList()));
 
 			/*
 			 * 5) Handling Time-stamp delay: If the validation constraints specify a time-stamp delay:
@@ -195,6 +216,8 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 			 */
 			item = item.setNextItem(timestampDelay(bestSignatureTime));
 		}
+
+		result.setBestSignatureTime(bestSignatureTime);
 	}
 
 	private Set<RevocationWrapper> getLinkedRevocationData() {
@@ -216,14 +239,17 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 		}
 	}
 
-	private Set<TimestampWrapper> filterInvalidTimestamps(List<TimestampWrapper> allTimestamps) {
+	private Set<TimestampWrapper> filterValidSignatureTimestamps(List<TimestampWrapper> allTimestamps) {
 		Set<TimestampWrapper> result = new HashSet<TimestampWrapper>();
 		for (TimestampWrapper timestampWrapper : allTimestamps) {
+			if (!TimestampType.SIGNATURE_TIMESTAMP.name().equals(timestampWrapper.getType())) {
+				break;
+			}
 			boolean foundValidationTSP = false;
 			for (XmlValidationProcessTimestamps timestampValidation : timestampValidations) {
 				List<XmlConstraint> constraints = timestampValidation.getConstraint();
 				for (XmlConstraint tspValidation : constraints) {
-					if (StringUtils.equals(timestampWrapper.getId(), tspValidation.getId())) {
+					if (Utils.areStringsEqual(timestampWrapper.getId(), tspValidation.getId())) {
 						foundValidationTSP = true;
 						// PVA : if OK message imprint is validated in SVA of timestamp (depending of constraint.xml)
 						if (XmlStatus.OK.equals(tspValidation.getStatus())) {
@@ -234,7 +260,7 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 				}
 			}
 			if (!foundValidationTSP) {
-				logger.warn("Cannot find tsp validation info for tsp " + timestampWrapper.getId());
+				LOG.warn("Cannot find tsp validation info for tsp {}", timestampWrapper.getId());
 			}
 		}
 		return result;
@@ -249,8 +275,9 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 	}
 
 	private ChainItem<XmlValidationProcessLongTermData> revocationDateAfterBestSignatureDate(Date bestSignatureTime) {
+		LevelConstraint constraint = policy.getRevocationTimeAgainstBestSignatureTime();
 		CertificateWrapper signingCertificate = diagnosticData.getUsedCertificateById(currentSignature.getSigningCertificateId());
-		return new RevocationDateAfterBestSignatureTimeCheck(result, signingCertificate, bestSignatureTime, getFailLevelConstraint());
+		return new RevocationDateAfterBestSignatureTimeCheck(result, signingCertificate, bestSignatureTime, constraint);
 	}
 
 	private ChainItem<XmlValidationProcessLongTermData> bestSignatureTimeNotBeforeCertificateIssuance(Date bestSignatureTime) {
@@ -259,8 +286,8 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 				policy.getBestSignatureTimeBeforeIssuanceDateOfSigningCertificateConstraint());
 	}
 
-	private ChainItem<XmlValidationProcessLongTermData> timestampCoherenceOrder(Set<TimestampWrapper> allowedTimestamps) {
-		return new TimestampCoherenceOrderCheck(result, allowedTimestamps, policy.getTimestampCoherenceConstraint());
+	private ChainItem<XmlValidationProcessLongTermData> timestampCoherenceOrder(List<TimestampWrapper> timestamps) {
+		return new TimestampCoherenceOrderCheck(result, timestamps, policy.getTimestampCoherenceConstraint());
 	}
 
 	private ChainItem<XmlValidationProcessLongTermData> signingTimeAttributePresent() {
@@ -268,7 +295,7 @@ public class ValidationProcessForSignaturesWithLongTermValidationData extends Ch
 	}
 
 	private ChainItem<XmlValidationProcessLongTermData> timestampDelay(Date bestSignatureTime) {
-		return new TimestampDelayCheck(result, currentSignature, bestSignatureTime, policy.getTimestampDelaySigningTimePropertyConstraint());
+		return new TimestampDelayCheck(result, currentSignature, bestSignatureTime, policy.getTimestampDelayConstraint());
 	}
 
 	private ChainItem<XmlValidationProcessLongTermData> algorithmReliableAtBestSignatureTime(Date bestSignatureTime) {

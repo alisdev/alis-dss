@@ -1,22 +1,28 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * 
+ * Licensed under the EUPL, Version 1.1 or – as soon they
+ * will be approved by the European Commission - subsequent
+ * versions of the EUPL (the "Licence");
+ * 
+ * You may not use this work except in compliance with the
+ * Licence.
+ * 
+ * You may obtain a copy of the Licence at:
+ * 
+ * https://joinup.ec.europa.eu/software/page/eupl
+ * 
+ * Unless required by applicable law or agreed to in
+ * writing, software distributed under the Licence is
+ * distributed on an "AS IS" basis,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied.
+ * 
+ * See the Licence for the specific language governing
+ * permissions and limitations under the Licence.
  */
 package eu.europa.esig.dss.token.mocca;
 
@@ -37,7 +43,7 @@ import eu.europa.esig.dss.x509.CertificateToken;
  */
 public class MOCCAPrivateKeyEntry implements DSSPrivateKeyEntry {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MOCCASignatureTokenConnection.class);
+	private static final Logger LOG = LoggerFactory.getLogger(MOCCAPrivateKeyEntry.class);
 
 	private CertificateToken signingCert;
 
@@ -58,9 +64,8 @@ public class MOCCAPrivateKeyEntry implements DSSPrivateKeyEntry {
 	 * @param keyboxName  identifies signature usage/algorithm
 	 * @param index       the position of this KeyEntry in the overall list
 	 * @param atr         the ATR associated with this key
-	 * @throws Exception
 	 */
-	public MOCCAPrivateKeyEntry(final byte[] signingCert, final KeyboxName keyboxName, final int index, final byte[] atr) throws Exception {
+	public MOCCAPrivateKeyEntry(final byte[] signingCert, final KeyboxName keyboxName, final int index, final byte[] atr) {
 
 		initialise(signingCert, keyboxName, atr);
 		this.index = index;
@@ -76,7 +81,7 @@ public class MOCCAPrivateKeyEntry implements DSSPrivateKeyEntry {
 	private void initialise(final byte[] signingCertBinary, final KeyboxName keyboxName, final byte[] atr) {
 
 		this.signingCert = DSSUtils.loadCertificate(signingCertBinary);
-		LOG.info(">>>Signing certificate subject name/serial number: " + signingCert.getSubjectX500Principal().getName() + "/" + signingCert.getSerialNumber());
+		LOG.info(">>>Signing certificate subject name/serial number:  {} / {}", signingCert.getSubjectX500Principal().getName(), signingCert.getSerialNumber());
 		this.keyboxName = keyboxName;
 		if (keyboxName == null) {
 
@@ -85,7 +90,7 @@ public class MOCCAPrivateKeyEntry implements DSSPrivateKeyEntry {
 		this.atr = atr;
 		String encryptionAlgo = signingCert.getPublicKey().getAlgorithm(); // Can be: DH, DSA, RSA & EC
 		this.encryptionAlgorithm = EncryptionAlgorithm.forName(encryptionAlgo);
-		LOG.info("MOCCA>>>EncryptionAlgorithm from public key: " + this.encryptionAlgorithm.getName());
+		LOG.info("MOCCA>>>EncryptionAlgorithm from public key: {}", this.encryptionAlgorithm.getName());
 		this.certificateChain[0] = this.signingCert;
 	}
 

@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -22,212 +22,302 @@ package eu.europa.esig.dss.x509;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.KeyStore.PasswordProtection;
 import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Locale;
 
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import eu.europa.esig.dss.DSSEncodingException;
-import eu.europa.esig.dss.DSSEncodingException.MSG;
+import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.DSSUtils;
+import eu.europa.esig.dss.utils.Utils;
 
 /**
- * Implements a CertificateSource using a JKS KeyStore.
+ * Implements a CertificateSource using a KeyStore (PKCS12, JKS,...).
+ * 
+ * Note: PKCS12 + JDK7 don't allow trust store
  *
  */
 public class KeyStoreCertificateSource extends CommonCertificateSource {
 
-	private static final Logger logger = LoggerFactory.getLogger(KeyStoreCertificateSource.class);
+	private static final Logger LOG = LoggerFactory.getLogger(KeyStoreCertificateSource.class);
 
-	private static final String DEFAULT_KEYSTORE_TYPE = "JKS";
+	private KeyStore keyStore;
+	private PasswordProtection passwordProtection;
 
-	private File keyStoreFile;
+	/**
+	 * Constructor for KeyStoreCertificateSource with <code>CertificatePool</code>.
+	 * 
+	 * This constructor allows to create a new empty keystore.
+	 * 
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 * @param certPool
+	 *            the certificate pool
+	 */
+	public KeyStoreCertificateSource(final String ksType, final String ksPassword, final CertificatePool certPool) {
+		this((InputStream) null, ksType, ksPassword, certPool);
+	}
 
-	private String password;
+	/**
+	 * Constructor for KeyStoreCertificateSource with <code>CertificatePool</code>.
+	 * 
+	 * @param ksFilePath
+	 *            the keystore filepath
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 * @param certPool
+	 *            the certificate pool
+	 * @throws IOException
+	 *             if the file not exists
+	 */
+	public KeyStoreCertificateSource(final String ksFilePath, final String ksType, final String ksPassword, final CertificatePool certPool) throws IOException {
+		this(new File(ksFilePath), ksType, ksPassword, certPool);
+	}
 
-	private String keyStoreType;
+	/**
+	 * Constructor for KeyStoreCertificateSource with <code>CertificatePool</code>.
+	 * 
+	 * @param ksFile
+	 *            the keystore file
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 * @param certPool
+	 *            the certificate pool
+	 * @throws IOException
+	 *             if the file not exists
+	 */
+	public KeyStoreCertificateSource(final File ksFile, final String ksType, final String ksPassword, final CertificatePool certPool) throws IOException {
+		this(new FileInputStream(ksFile), ksType, ksPassword, certPool);
+	}
 
 	/**
 	 * The default constructor for KeyStoreCertificateSource.
 	 *
-	 * @param keyStoreFilename
-	 * @param password
+	 * @param ksStream
+	 *            the inputstream with the keystore (can be null to create a new keystore)
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
 	 * @param certPool
+	 *            the certificate pool
 	 */
-	public KeyStoreCertificateSource(final String keyStoreFilename, final String password, final CertificatePool certPool) {
-		this(new File(keyStoreFilename), DEFAULT_KEYSTORE_TYPE, password, certPool);
-	}
-
-	/**
-	 * The default constructor for KeyStoreCertificateSource.
-	 *
-	 * @param keyStoreFile
-	 * @param password
-	 * @param certPool
-	 */
-	public KeyStoreCertificateSource(final File keyStoreFile, final String password, final CertificatePool certPool) {
-		this(keyStoreFile, DEFAULT_KEYSTORE_TYPE, password, certPool);
-	}
-
-	/**
-	 * The default constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
-	 *
-	 * @param keyStoreFilename
-	 * @param password
-	 */
-	public KeyStoreCertificateSource(final String keyStoreFilename, final String password) {
-		this(new File(keyStoreFilename), DEFAULT_KEYSTORE_TYPE, password);
-	}
-
-	/**
-	 * The default constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
-	 *
-	 * @param keyStoreFile
-	 * @param password
-	 */
-	public KeyStoreCertificateSource(final File keyStoreFile, final String password) {
-		this(keyStoreFile, DEFAULT_KEYSTORE_TYPE, password);
-	}
-
-	/**
-	 * The default constructor for KeyStoreCertificateSource.
-	 *
-	 * @param keyStoreFile
-	 * @param keyStoreType
-	 * @param password
-	 * @param certPool
-	 */
-	public KeyStoreCertificateSource(final File keyStoreFile, final String keyStoreType, final String password, final CertificatePool certPool) {
+	public KeyStoreCertificateSource(final InputStream ksStream, final String ksType, final String ksPassword, final CertificatePool certPool) {
 		super(certPool);
-		this.keyStoreFile = keyStoreFile;
-		this.keyStoreType = keyStoreType;
-		this.password = password;
+		initKeystore(ksStream, ksType, ksPassword);
+	}
+
+	/**
+	 * Constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
+	 * 
+	 * This constructor allows to create a new empty keystore.
+	 * 
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 */
+	public KeyStoreCertificateSource(final String ksType, final String ksPassword) {
+		this((InputStream) null, ksType, ksPassword);
+	}
+
+	/**
+	 * Constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
+	 * 
+	 * @param ksFilePath
+	 *            the keystore filepath
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 * @throws IOException
+	 *             if the file not exists
+	 */
+	public KeyStoreCertificateSource(final String ksFilePath, final String ksType, final String ksPassword) throws IOException {
+		this(new File(ksFilePath), ksType, ksPassword);
+	}
+
+	/**
+	 * Constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
+	 * 
+	 * @param ksFile
+	 *            the keystore file
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
+	 * @throws IOException
+	 *             if the file not exists
+	 */
+	public KeyStoreCertificateSource(final File ksFile, final String ksType, final String ksPassword) throws IOException {
+		this(new FileInputStream(ksFile), ksType, ksPassword);
 	}
 
 	/**
 	 * The default constructor for KeyStoreCertificateSource without <code>CertificatePool</code>.
 	 *
-	 * @param keyStoreFile
-	 * @param keyStoreType
-	 * @param password
+	 * @param ksStream
+	 *            the inputstream with the keystore (can be null to create a new keystore)
+	 * @param ksType
+	 *            the keystore type
+	 * @param ksPassword
+	 *            the keystore password
 	 */
-	public KeyStoreCertificateSource(final File keyStoreFile, final String keyStoreType, final String password) {
+	public KeyStoreCertificateSource(final InputStream ksStream, final String ksType, final String ksPassword) {
 		super();
-		this.keyStoreFile = keyStoreFile;
-		this.keyStoreType = keyStoreType;
-		this.password = password;
+		initKeystore(ksStream, ksType, ksPassword);
 	}
 
-	public List<CertificateToken> populate() {
+	private void initKeystore(final InputStream ksStream, final String ksType, final String ksPassword) {
+		try {
+			keyStore = KeyStore.getInstance(ksType);
+			final char[] password = (ksPassword == null) ? null : ksPassword.toCharArray();
+			keyStore.load(ksStream, password);
+			passwordProtection = new PasswordProtection(password);
+		} catch (GeneralSecurityException | IOException e) {
+			throw new DSSException("Unable to initialize the keystore", e);
+		} finally {
+			Utils.closeQuietly(ksStream);
+		}
+	}
+
+	/**
+	 * This method allows to retrieve a certificate by its alias
+	 * 
+	 * @param alias
+	 *            the certificate alias in the keystore
+	 * @return the certificate
+	 */
+	public CertificateToken getCertificate(String alias) {
+		try {
+			String aliasToSearch = getKey(alias);
+			if (keyStore.containsAlias(aliasToSearch)) {
+				Certificate certificate = keyStore.getCertificate(aliasToSearch);
+				return DSSUtils.loadCertificate(certificate.getEncoded());
+			} else {
+				LOG.warn("Certificate '{}' not found in the keystore", aliasToSearch);
+				return null;
+			}
+		} catch (GeneralSecurityException e) {
+			throw new DSSException("Unable to retrieve certificate from the keystore", e);
+		}
+	}
+
+	/**
+	 * This method returns all certificates from the keystore
+	 */
+	@Override
+	public List<CertificateToken> getCertificates() {
 		List<CertificateToken> list = new ArrayList<CertificateToken>();
 		try {
-			KeyStore keyStore = getKeyStore();
 			Enumeration<String> aliases = keyStore.aliases();
 			while (aliases.hasMoreElements()) {
-				String alias = aliases.nextElement();
-				final Certificate certificate = keyStore.getCertificate(alias);
-				if (certificate != null) {
-					X509Certificate x509Certificate = (X509Certificate) certificate;
-					logger.debug("Alias " + alias + " Cert " + x509Certificate.getSubjectDN());
-
-					CertificateToken certToken = certPool.getInstance(new CertificateToken(x509Certificate), CertificateSourceType.OTHER);
-					list.add(certToken);
-				}
-				Certificate[] certificateChain = keyStore.getCertificateChain(alias);
-				if (certificateChain != null) {
-					for (Certificate chainCert : certificateChain) {
-						logger.debug("Alias " + alias + " Cert " + ((X509Certificate) chainCert).getSubjectDN());
-						CertificateToken certToken = certPool.getInstance(new CertificateToken((X509Certificate) chainCert), CertificateSourceType.OCSP_RESPONSE);
-						if (!list.contains(certToken)) {
-							list.add(certToken);
-						}
-					}
-				}
+				Certificate certificate = keyStore.getCertificate(getKey(aliases.nextElement()));
+				list.add(DSSUtils.loadCertificate(certificate.getEncoded()));
 			}
-		} catch (Exception e) {
-			throw new DSSEncodingException(MSG.CERTIFICATE_CANNOT_BE_READ, e);
+		} catch (GeneralSecurityException e) {
+			throw new DSSException("Unable to retrieve certificates from the keystore", e);
 		}
-		return list;
+		return Collections.unmodifiableList(list);
 	}
 
+	/**
+	 * This method allows to add a list of certificates to the keystore
+	 * 
+	 * @param certificates
+	 *            the list of certificates
+	 */
+	public void addAllCertificatesToKeyStore(List<CertificateToken> certificates) {
+		for (CertificateToken certificateToken : certificates) {
+			addCertificateToKeyStore(certificateToken);
+		}
+	}
+
+	/**
+	 * This method allows to add a certificate in the keystore. The generated alias will be the DSS ID.
+	 * 
+	 * @param certificateToken
+	 *            the certificate to be added in the keystore
+	 */
 	public void addCertificateToKeyStore(CertificateToken certificateToken) {
 		try {
-			KeyStore keyStore = getKeyStore();
-			keyStore.setCertificateEntry(certificateToken.getDSSIdAsString(), certificateToken.getCertificate());
-			persistKeyStore(keyStore);
-		} catch (Exception e) {
-			logger.error("Unable to add certificate to the keystore : " + e.getMessage(), e);
+			keyStore.setCertificateEntry(getKey(certificateToken.getDSSIdAsString()), certificateToken.getCertificate());
+		} catch (GeneralSecurityException e) {
+			throw new DSSException("Unable to add certificate to the keystore", e);
 		}
 	}
 
-	private void persistKeyStore(KeyStore keyStore) {
-		OutputStream os = null;
+	/**
+	 * This method allows to remove a certificate from the keystore
+	 * 
+	 * @param alias
+	 *            the certificate alias
+	 */
+	public void deleteCertificateFromKeyStore(String alias) {
 		try {
-			os = new FileOutputStream(keyStoreFile);
-			keyStore.store(os, password.toCharArray());
-		} catch (Exception e) {
-			logger.error("Unable to persist the keystore : " + e.getMessage(), e);
-		} finally {
-			IOUtils.closeQuietly(os);
-		}
-	}
-
-	public void deleteCertificateFromKeyStore(String dssId) {
-		KeyStore keyStore = getKeyStore();
-		try {
-			if (keyStore.containsAlias(dssId)) {
-				keyStore.deleteEntry(dssId);
-				persistKeyStore(keyStore);
-				logger.info("Certificate with ID " + dssId + " successfuly removed from the keystore");
+			if (keyStore.containsAlias(alias)) {
+				keyStore.deleteEntry(alias);
+				LOG.info("Certificate '{}' successfuly removed from the keystore", alias);
 			} else {
-				logger.warn("Certificate " + dssId + " not found in the keystore");
+				LOG.warn("Certificate '{}' not found in the keystore", alias);
 			}
-		} catch (Exception e) {
-			logger.error("Unable to delete certificate from the keystore : " + e.getMessage(), e);
+		} catch (GeneralSecurityException e) {
+			throw new DSSException("Unable to delete certificate from the keystore", e);
 		}
 	}
 
-	public List<CertificateToken> getCertificatesFromKeyStore() {
-		List<CertificateToken> list = new ArrayList<CertificateToken>();
-
-		KeyStore keyStore = getKeyStore();
+	/**
+	 * This method allows to remove all certificates from the keystore
+	 */
+	public void clearAllCertificates() {
 		try {
 			Enumeration<String> aliases = keyStore.aliases();
 			while (aliases.hasMoreElements()) {
 				String alias = aliases.nextElement();
-				if (keyStore.isCertificateEntry(alias)) {
-					Certificate certificate = keyStore.getCertificate(alias);
-					CertificateToken certificateToken = DSSUtils.loadCertificate(certificate.getEncoded());
-					list.add(certificateToken);
-				}
+				deleteCertificateFromKeyStore(alias);
 			}
-		} catch (Exception e) {
-			logger.error("Unable to retrieve certificates from the keystore : " + e.getMessage(), e);
+		} catch (GeneralSecurityException e) {
+			throw new DSSException("Unable to clear certificates from the keystore", e);
 		}
-		return list;
 	}
 
-	private KeyStore getKeyStore() {
-		KeyStore store = null;
-		InputStream is = null;
+	/**
+	 * This method allows to store the keystore in the OutputStream
+	 * 
+	 * @param os
+	 *            the OutpuStream where to store the keystore
+	 */
+	public void store(OutputStream os) {
 		try {
-			store = KeyStore.getInstance(keyStoreType);
-			is = new FileInputStream(keyStoreFile);
-			store.load(is, password.toCharArray());
-		} catch (Exception e) {
-			logger.error("Unable to read keystore : " + e.getMessage(), e);
-		} finally {
-			IOUtils.closeQuietly(is);
+			keyStore.store(os, passwordProtection.getPassword());
+		} catch (GeneralSecurityException | IOException e) {
+			throw new DSSException("Unable to store the keystore", e);
 		}
-		return store;
 	}
+
+	private String getKey(String inputKey) {
+		if ("PKCS12".equals(keyStore.getType())) {
+			// workaround for https://bugs.openjdk.java.net/browse/JDK-8079616:
+			return inputKey.toLowerCase(Locale.ROOT);
+		}
+		return inputKey;
+	}
+
 }

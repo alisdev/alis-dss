@@ -1,6 +1,24 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.signature;
-
-import java.io.IOException;
 
 import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.RemoteDocument;
@@ -17,26 +35,18 @@ public class RestDocumentSignatureServiceImpl implements RestDocumentSignatureSe
 	}
 
 	@Override
-	public ToBeSigned getDataToSign(DataToSignDTO dataToSignDto) throws DSSException {
+	public ToBeSigned getDataToSign(DataToSignOneDocumentDTO dataToSignDto) throws DSSException {
 		return service.getDataToSign(dataToSignDto.getToSignDocument(), dataToSignDto.getParameters());
 	}
 
 	@Override
-	public RemoteDocument signDocument(SignDocumentDTO signDocumentDto) throws DSSException {
-		try {
-			return new RemoteDocument(service.signDocument(signDocumentDto.getToSignDocument(), signDocumentDto.getParameters(), signDocumentDto.getSignatureValue()));
-		} catch (IOException e) {
-			throw new DSSException(e);
-		}
+	public RemoteDocument signDocument(SignOneDocumentDTO signDocumentDto) throws DSSException {
+		return service.signDocument(signDocumentDto.getToSignDocument(), signDocumentDto.getParameters(), signDocumentDto.getSignatureValue());
 	}
 
 	@Override
 	public RemoteDocument extendDocument(ExtendDocumentDTO extendDocumentDto) throws DSSException {
-		try {
-			return new RemoteDocument(service.extendDocument(extendDocumentDto.getToExtendDocument(), extendDocumentDto.getParameters()));
-		} catch (IOException e) {
-			throw new DSSException(e);
-		}
+		return service.extendDocument(extendDocumentDto.getToExtendDocument(), extendDocumentDto.getParameters());
 	}
 
 }

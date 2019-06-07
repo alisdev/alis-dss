@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.client.http.commons;
 
 import static org.junit.Assert.assertNotNull;
@@ -5,11 +25,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.junit.Test;
 
 import eu.europa.esig.dss.DSSUtils;
 import eu.europa.esig.dss.client.http.NativeHTTPDataLoader;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.x509.CertificateToken;
 
 public class CommonsDataLoaderTest {
@@ -34,19 +54,19 @@ public class CommonsDataLoaderTest {
 	@Test
 	public void ldapTest1() {
 		String url = "ldap://x500.gov.si/ou=sigen-ca,o=state-institutions,c=si?certificateRevocationList?base";
-		assertTrue(ArrayUtils.isNotEmpty(dataLoader.get(url)));
+		assertTrue(Utils.isArrayNotEmpty(dataLoader.get(url)));
 	}
 
 	@Test
 	public void ldapTest2() {
 		String url = "ldap://postarca.posta.si/ou=POSTArCA,o=POSTA,c=SI?certificateRevocationList";
-		assertTrue(ArrayUtils.isNotEmpty(dataLoader.get(url)));
+		assertTrue(Utils.isArrayNotEmpty(dataLoader.get(url)));
 	}
 
 	@Test
 	public void ldapTest3() {
 		String url = "ldap://acldap.nlb.si/o=ACNLB,c=SI?certificateRevocationList";
-		assertTrue(ArrayUtils.isNotEmpty(dataLoader.get(url)));
+		assertTrue(Utils.isArrayNotEmpty(dataLoader.get(url)));
 	}
 
 }

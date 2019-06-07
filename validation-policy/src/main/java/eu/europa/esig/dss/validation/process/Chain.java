@@ -1,7 +1,31 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process;
 
+import java.util.List;
+
 import eu.europa.esig.dss.jaxb.detailedreport.XmlConclusion;
+import eu.europa.esig.dss.jaxb.detailedreport.XmlConstraint;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlConstraintsConclusion;
+import eu.europa.esig.dss.jaxb.detailedreport.XmlName;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
 import eu.europa.esig.jaxb.policy.Level;
 import eu.europa.esig.jaxb.policy.LevelConstraint;
@@ -76,6 +100,37 @@ public abstract class Chain<T extends XmlConstraintsConclusion> {
 		LevelConstraint constraint = new LevelConstraint();
 		constraint.setLevel(Level.FAIL);
 		return constraint;
+	}
+
+	protected LevelConstraint getWarnLevelConstraint() {
+		LevelConstraint constraint = new LevelConstraint();
+		constraint.setLevel(Level.WARN);
+		return constraint;
+	}
+
+	protected LevelConstraint getInfoLevelConstraint() {
+		LevelConstraint constraint = new LevelConstraint();
+		constraint.setLevel(Level.INFORM);
+		return constraint;
+	}
+
+	protected void collectErrorsWarnsInfos() {
+		XmlConclusion conclusion = result.getConclusion();
+		List<XmlConstraint> constraints = result.getConstraint();
+		for (XmlConstraint xmlConstraint : constraints) {
+			XmlName error = xmlConstraint.getError();
+			if (error != null) {
+				conclusion.getErrors().add(error);
+			}
+			XmlName warning = xmlConstraint.getWarning();
+			if (warning != null) {
+				conclusion.getWarnings().add(warning);
+			}
+			XmlName info = xmlConstraint.getInfo();
+			if (info != null) {
+				conclusion.getInfos().add(info);
+			}
+		}
 	}
 
 }

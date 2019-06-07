@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -21,8 +21,6 @@
 package eu.europa.esig.dss.xades.signature;
 
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.xml.crypto.dsig.CanonicalizationMethod;
 
@@ -32,9 +30,11 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 import eu.europa.esig.dss.DSSDocument;
+import eu.europa.esig.dss.DigestAlgorithm;
+import eu.europa.esig.dss.DomUtils;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.CertificateVerifier;
 import eu.europa.esig.dss.xades.DSSReference;
-import eu.europa.esig.dss.xades.DSSXMLUtils;
 import eu.europa.esig.dss.xades.XAdESSignatureParameters;
 
 /**
@@ -42,7 +42,7 @@ import eu.europa.esig.dss.xades.XAdESSignatureParameters;
  */
 class DetachedSignatureBuilder extends XAdESSignatureBuilder {
 
-	private static final Logger logger = LoggerFactory.getLogger(DetachedSignatureBuilder.class);
+	private static final Logger LOG = LoggerFactory.getLogger(DetachedSignatureBuilder.class);
 
 	/**
 	 * The default constructor for DetachedSignatureBuilder.<br>
@@ -65,7 +65,7 @@ class DetachedSignatureBuilder extends XAdESSignatureBuilder {
 		if (params.getRootDocument() != null) {
 			return params.getRootDocument();
 		}
-		return DSSXMLUtils.buildDOM();
+		return DomUtils.buildDOM();
 	}
 
 	@Override
@@ -77,30 +77,23 @@ class DetachedSignatureBuilder extends XAdESSignatureBuilder {
 	}
 
 	@Override
-	protected List<DSSReference> createDefaultReferences() {
-
-		final List<DSSReference> references = new ArrayList<DSSReference>();
-
-		DSSDocument currentDetachedDocument = detachedDocument;
-		int referenceIndex = 1;
-		do {
-			// <ds:Reference Id="detached-ref-id" URI="xml_example.xml">
-			final DSSReference reference = new DSSReference();
-			reference.setId("r-id-" + referenceIndex++);
-			final String fileURI = currentDetachedDocument.getName() != null ? currentDetachedDocument.getName() : "";
+	protected DSSReference createReference(DSSDocument document, int referenceIndex) {
+		final DSSReference reference = new DSSReference();
+		reference.setId("r-id-" + referenceIndex);
+		if (Utils.isStringNotEmpty(document.getName())) {
+			final String fileURI = document.getName();
 			try {
-				reference.setUri(URLEncoder.encode(fileURI, "UTF-8"));
+				// MUST comply RFC 3896 (see DSS-1475 for details)
+				reference.setUri(URLEncoder.encode(fileURI, "UTF-8").replace("+", "%20"));
 			} catch (Exception e) {
-				logger.warn("Unable to encode uri '" + fileURI + "' : " + e.getMessage());
+				LOG.warn("Unable to encode uri '" + fileURI + "' : " + e.getMessage());
 				reference.setUri(fileURI);
 			}
-			reference.setContents(currentDetachedDocument);
-			reference.setDigestMethodAlgorithm(params.getDigestAlgorithm());
-
-			references.add(reference);
-			currentDetachedDocument = currentDetachedDocument.getNextDocument();
-		} while (currentDetachedDocument != null);
-		return references;
+		}
+		reference.setContents(document);
+		DigestAlgorithm digestAlgorithm = params.getReferenceDigestAlgorithm() != null ? params.getReferenceDigestAlgorithm() : params.getDigestAlgorithm();
+		reference.setDigestMethodAlgorithm(digestAlgorithm);
+		return reference;
 	}
 
 	@Override

@@ -1,28 +1,46 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.tsl.service;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 
+import eu.europa.esig.dss.FileDocument;
 import eu.europa.esig.dss.tsl.TSLParserResult;
 import eu.europa.esig.dss.tsl.TSLPointer;
 import eu.europa.esig.dss.tsl.TSLService;
-import eu.europa.esig.dss.tsl.TSLServiceExtension;
 import eu.europa.esig.dss.tsl.TSLServiceProvider;
-import eu.europa.esig.dss.tsl.TSLServiceStatus;
+import eu.europa.esig.dss.tsl.TSLServiceStatusAndInformationExtensions;
+import eu.europa.esig.dss.util.TimeDependentValues;
+import eu.europa.esig.dss.utils.Utils;
 
 @RunWith(Parameterized.class)
 public class TSLSParserTest {
@@ -30,7 +48,7 @@ public class TSLSParserTest {
 	@Parameters(name = "TSL to parse {index} : {0}")
 	public static Collection<Object[]> data() {
 		File folder = new File("src/test/resources/tsls");
-		Collection<File> listFiles = FileUtils.listFiles(folder, new String[] { "xml" }, true);
+		Collection<File> listFiles = Utils.listFiles(folder, new String[] { "xml" }, true);
 		Collection<Object[]> dataToRun = new ArrayList<Object[]>();
 		for (File file : listFiles) {
 			dataToRun.add(new Object[] { file });
@@ -56,51 +74,45 @@ public class TSLSParserTest {
 
 	@Test
 	public void parseTSL() throws Exception {
-		TSLParser parser = new TSLParser(new FileInputStream(fileToTest));
+		TSLParser parser = new TSLParser(new FileDocument(fileToTest.getAbsolutePath()));
 		TSLParserResult result = parser.call();
 		assertNotNull(result);
 		assertNotNull(result.getNextUpdateDate());
 		assertNotNull(result.getIssueDate());
-		assertTrue(StringUtils.isNotEmpty(result.getTerritory()));
+		assertTrue(Utils.isStringNotEmpty(result.getTerritory()));
 		assertTrue(result.getSequenceNumber() > 0);
 		List<TSLPointer> pointers = result.getPointers();
-		assertTrue(CollectionUtils.isNotEmpty(pointers));
+		assertTrue(Utils.isCollectionNotEmpty(pointers));
 		for (TSLPointer tslPointer : pointers) {
-			assertTrue(StringUtils.isNotEmpty(tslPointer.getMimeType()));
-			assertTrue(StringUtils.isNotEmpty(tslPointer.getTerritory()));
-			assertTrue(StringUtils.isNotEmpty(tslPointer.getUrl()));
-			assertTrue(CollectionUtils.isNotEmpty(tslPointer.getPotentialSigners()));
+			assertTrue(Utils.isStringNotEmpty(tslPointer.getMimeType()));
+			assertTrue(Utils.isStringNotEmpty(tslPointer.getTerritory()));
+			assertTrue(Utils.isStringNotEmpty(tslPointer.getUrl()));
+			assertTrue(Utils.isCollectionNotEmpty(tslPointer.getPotentialSigners()));
 		}
 
 		List<TSLServiceProvider> serviceProviders = result.getServiceProviders();
 
 		if (countriesWithoutTSP.contains(result.getTerritory())) {
-			assertTrue(CollectionUtils.isEmpty(serviceProviders));
+			assertTrue(Utils.isCollectionEmpty(serviceProviders));
 		} else {
-			assertTrue(CollectionUtils.isNotEmpty(serviceProviders));
+			assertTrue(Utils.isCollectionNotEmpty(serviceProviders));
 			for (TSLServiceProvider tslServiceProvider : serviceProviders) {
-				assertTrue(StringUtils.isNotEmpty(tslServiceProvider.getName()));
-				assertTrue(StringUtils.isNotEmpty(tslServiceProvider.getPostalAddress()));
-				assertTrue(StringUtils.isNotEmpty(tslServiceProvider.getElectronicAddress()));
+				assertTrue(Utils.isStringNotEmpty(tslServiceProvider.getName()));
+				assertTrue(Utils.isStringNotEmpty(tslServiceProvider.getPostalAddress()));
+				assertTrue(Utils.isStringNotEmpty(tslServiceProvider.getElectronicAddress()));
 				List<TSLService> services = tslServiceProvider.getServices();
-				assertTrue(CollectionUtils.isNotEmpty(services));
+				assertTrue(Utils.isCollectionNotEmpty(services));
 				for (TSLService tslService : services) {
-					assertTrue(StringUtils.isNotEmpty(tslService.getName()));
-					assertTrue(StringUtils.isNotEmpty(tslService.getType()));
-
-					List<TSLServiceStatus> status = tslService.getStatus();
-					assertTrue(CollectionUtils.isNotEmpty(status));
-					for (TSLServiceStatus tslServiceStatus : status) {
-						assertTrue(StringUtils.isNotEmpty(tslServiceStatus.getStatus()));
+					TimeDependentValues<TSLServiceStatusAndInformationExtensions> status = tslService.getStatusAndInformationExtensions();
+					int n = 0;
+					for (TSLServiceStatusAndInformationExtensions tslServiceStatus : status) {
+						assertTrue(Utils.isStringNotEmpty(tslServiceStatus.getName()));
+						assertTrue(Utils.isStringNotEmpty(tslServiceStatus.getStatus()));
+						assertTrue(Utils.isStringNotEmpty(tslServiceStatus.getType()));
 						assertNotNull(tslServiceStatus.getStartDate());
+						++n;
 					}
-
-					List<TSLServiceExtension> extensions = tslService.getExtensions();
-					if (CollectionUtils.isNotEmpty(extensions)) {
-						for (TSLServiceExtension tslServiceExtension : extensions) {
-							assertTrue(CollectionUtils.isNotEmpty(tslServiceExtension.getConditionsForQualifiers()));
-						}
-					}
+					assertTrue(n > 0);
 				}
 			}
 		}

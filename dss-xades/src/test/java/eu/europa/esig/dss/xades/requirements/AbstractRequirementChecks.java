@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.xades.requirements;
 
 import static org.junit.Assert.assertNotNull;
@@ -11,8 +31,6 @@ import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.lang.StringUtils;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -23,9 +41,11 @@ import org.w3c.dom.NodeList;
 
 import eu.europa.esig.dss.DSSDocument;
 import eu.europa.esig.dss.DSSUtils;
+import eu.europa.esig.dss.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.x509.CertificateToken;
 
-public abstract class AbstractRequirementChecks {
+public abstract class AbstractRequirementChecks extends PKIFactoryAccess {
 
 	private static DocumentBuilderFactory dbf;
 	private static XPath xpath;
@@ -67,7 +87,7 @@ public abstract class AbstractRequirementChecks {
 		for (int i = 0; i < length; i++) {
 			Node node = nodeList.item(i);
 			String certificateBase64 = node.getTextContent();
-			byte[] decodeCertificate = Base64.decodeBase64(certificateBase64);
+			byte[] decodeCertificate = Utils.fromBase64(certificateBase64);
 			CertificateToken certificateToken = DSSUtils.loadCertificate(decodeCertificate);
 			assertNotNull(certificateToken);
 		}
@@ -83,7 +103,7 @@ public abstract class AbstractRequirementChecks {
 		assertNotNull(node);
 		NamedNodeMap attributes = node.getAttributes();
 		Node algoNode = attributes.getNamedItem("Algorithm");
-		assertTrue(StringUtils.isNotEmpty(algoNode.getTextContent()));
+		assertTrue(Utils.isStringNotEmpty(algoNode.getTextContent()));
 	}
 
 	/**
@@ -113,7 +133,7 @@ public abstract class AbstractRequirementChecks {
 	 */
 	@Test
 	public void checkSigningCertificatePresent() throws XPathExpressionException {
-		XPathExpression exp = xpath.compile("//xades:SignedProperties/xades:SignedSignatureProperties/xades:SigningCertificate");
+		XPathExpression exp = xpath.compile("//xades:SignedProperties/xades:SignedSignatureProperties/xades:SigningCertificateV2");
 		Node node = (Node) exp.evaluate(document, XPathConstants.NODE);
 		assertNotNull(node);
 	}
@@ -129,7 +149,7 @@ public abstract class AbstractRequirementChecks {
 
 		NamedNodeMap attributes = node.getAttributes();
 		Node objectReferenceAttribute = attributes.getNamedItem("ObjectReference");
-		assertTrue(StringUtils.isNotEmpty(objectReferenceAttribute.getTextContent()));
+		assertTrue(Utils.isStringNotEmpty(objectReferenceAttribute.getTextContent()));
 	}
 
 	/**
@@ -140,7 +160,7 @@ public abstract class AbstractRequirementChecks {
 		XPathExpression exp = xpath.compile("//xades:SignedProperties/xades:SignedDataObjectProperties/xades:DataObjectFormat/xades:MimeType");
 		Node node = (Node) exp.evaluate(document, XPathConstants.NODE);
 		assertNotNull(node);
-		assertTrue(StringUtils.isNotEmpty(node.getTextContent()));
+		assertTrue(Utils.isStringNotEmpty(node.getTextContent()));
 	}
 
 	/**

@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.reports.wrapper;
 
 import java.util.ArrayList;
@@ -7,22 +27,17 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.BooleanUtils;
-import org.apache.commons.lang.StringUtils;
-
-import eu.europa.esig.dss.jaxb.diagnostic.XmlBasicSignatureType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlCertificateChainType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlCertifiedRolesType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlClaimedRoles;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlCommitmentTypeIndication;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlBasicSignature;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlCertifiedRole;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlChainItem;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlDigestMatcher;
 import eu.europa.esig.dss.jaxb.diagnostic.XmlPolicy;
 import eu.europa.esig.dss.jaxb.diagnostic.XmlSignature;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlSignatureScopes;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlSigningCertificateType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlStructuralValidationType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlTimestampType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlTimestamps;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlSignatureScope;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlSigningCertificate;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlStructuralValidation;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlTimestamp;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.x509.TimestampType;
 
 public class SignatureWrapper extends AbstractTokenProxy {
@@ -39,18 +54,27 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	}
 
 	@Override
-	protected XmlBasicSignatureType getCurrentBasicSignature() {
+	public List<XmlDigestMatcher> getDigestMatchers() {
+		return signature.getDigestMatchers();
+	}
+
+	@Override
+	protected XmlBasicSignature getCurrentBasicSignature() {
 		return signature.getBasicSignature();
 	}
 
 	@Override
-	protected XmlCertificateChainType getCurrentCertificateChain() {
+	protected List<XmlChainItem> getCurrentCertificateChain() {
 		return signature.getCertificateChain();
 	}
 
 	@Override
-	protected XmlSigningCertificateType getCurrentSigningCertificate() {
+	protected XmlSigningCertificate getCurrentSigningCertificate() {
 		return signature.getSigningCertificate();
+	}
+
+	public String getSignatureFilename() {
+		return signature.getSignatureFilename();
 	}
 
 	public boolean isStructuralValidationValid() {
@@ -58,11 +82,11 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	}
 
 	public String getStructuralValidationMessage() {
-		XmlStructuralValidationType structuralValidation = signature.getStructuralValidation();
+		XmlStructuralValidation structuralValidation = signature.getStructuralValidation();
 		if (structuralValidation != null) {
 			return structuralValidation.getMessage();
 		}
-		return StringUtils.EMPTY;
+		return Utils.EMPTY_STRING;
 	}
 
 	public Date getDateTime() {
@@ -81,15 +105,15 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		return signature.getContentIdentifier();
 	}
 
-	public String getType() {
-		return signature.getType();
+	public boolean isCounterSignature() {
+		return Utils.isTrue(signature.isCounterSignature());
 	}
 
 	public List<TimestampWrapper> getTimestampList() {
 		List<TimestampWrapper> tsps = new ArrayList<TimestampWrapper>();
-		XmlTimestamps timestamps = signature.getTimestamps();
-		if ((timestamps != null) && CollectionUtils.isNotEmpty(timestamps.getTimestamp())) {
-			for (XmlTimestampType timestamp : timestamps.getTimestamp()) {
+		List<XmlTimestamp> timestamps = signature.getTimestamps();
+		if (Utils.isCollectionNotEmpty(timestamps)) {
+			for (XmlTimestamp timestamp : timestamps) {
 				tsps.add(new TimestampWrapper(timestamp));
 			}
 		}
@@ -149,7 +173,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	}
 
 	public boolean isSigningCertificateIdentified() {
-		XmlSigningCertificateType signingCertificate = signature.getSigningCertificate();
+		XmlSigningCertificate signingCertificate = signature.getSigningCertificate();
 		if (signingCertificate != null) {
 			return signingCertificate.isDigestValueMatch() && signingCertificate.isIssuerSerialMatch();
 		}
@@ -161,7 +185,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		if (policy != null) {
 			return policy.getId();
 		}
-		return StringUtils.EMPTY;
+		return Utils.EMPTY_STRING;
 	}
 
 	public boolean isBLevelTechnicallyValid() {
@@ -170,7 +194,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 
 	public boolean isThereXLevel() {
 		List<TimestampWrapper> timestampLevelX = getTimestampLevelX();
-		return CollectionUtils.isNotEmpty(timestampLevelX);
+		return Utils.isCollectionNotEmpty(timestampLevelX);
 	}
 
 	public boolean isXLevelTechnicallyValid() {
@@ -186,7 +210,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 
 	public boolean isThereALevel() {
 		List<TimestampWrapper> timestampList = getArchiveTimestamps();
-		return CollectionUtils.isNotEmpty(timestampList);
+		return Utils.isCollectionNotEmpty(timestampList);
 	}
 
 	public boolean isALevelTechnicallyValid() {
@@ -200,7 +224,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 
 	public boolean isThereTLevel() {
 		List<TimestampWrapper> timestamps = getSignatureTimestamps();
-		return CollectionUtils.isNotEmpty(timestamps);
+		return Utils.isCollectionNotEmpty(timestamps);
 	}
 
 	public boolean isTLevelTechnicallyValid() {
@@ -215,10 +239,9 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	private boolean isTimestampValid(List<TimestampWrapper> timestampList) {
 		for (final TimestampWrapper timestamp : timestampList) {
 			final boolean signatureValid = timestamp.isSignatureValid();
-			final boolean messageImprintIntact = timestamp.isMessageImprintDataIntact();
-			if (signatureValid && messageImprintIntact) { // TODO correct ?
-															// return true if at
-															// least 1 TSP OK
+			final XmlDigestMatcher messageImprint = timestamp.getMessageImprint();
+			final boolean messageImprintIntact = messageImprint.isDataFound() && messageImprint.isDataIntact();
+			if (signatureValid && messageImprintIntact) {
 				return true;
 			}
 		}
@@ -228,7 +251,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	public List<String> getTimestampIdsList() {
 		List<String> result = new ArrayList<String>();
 		List<TimestampWrapper> timestamps = getTimestampList();
-		if (CollectionUtils.isNotEmpty(timestamps)) {
+		if (Utils.isCollectionNotEmpty(timestamps)) {
 			for (TimestampWrapper tsp : timestamps) {
 				result.add(tsp.getId());
 			}
@@ -240,15 +263,15 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		return signature.getParentId();
 	}
 
-	public XmlSignatureScopes getSignatureScopes() {
+	public List<XmlSignatureScope> getSignatureScopes() {
 		return signature.getSignatureScopes();
 	}
 
 	public List<String> getCertifiedRoles() {
 		List<String> result = new ArrayList<String>();
-		List<XmlCertifiedRolesType> certifiedRoles = signature.getCertifiedRoles();
-		if (CollectionUtils.isNotEmpty(certifiedRoles)) {
-			for (XmlCertifiedRolesType certifiedRole : certifiedRoles) {
+		List<XmlCertifiedRole> certifiedRoles = signature.getCertifiedRoles();
+		if (Utils.isCollectionNotEmpty(certifiedRoles)) {
+			for (XmlCertifiedRole certifiedRole : certifiedRoles) {
 				result.add(certifiedRole.getCertifiedRole());
 			}
 		}
@@ -256,17 +279,17 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	}
 
 	public List<String> getCommitmentTypeIdentifiers() {
-		XmlCommitmentTypeIndication commitmentTypeIndication = signature.getCommitmentTypeIndication();
-		if ((commitmentTypeIndication != null) && CollectionUtils.isNotEmpty(commitmentTypeIndication.getIdentifier())) {
-			return commitmentTypeIndication.getIdentifier();
+		List<String> commitmentTypeIndications = signature.getCommitmentTypeIndication();
+		if (Utils.isCollectionNotEmpty(commitmentTypeIndications)) {
+			return commitmentTypeIndications;
 		}
 		return Collections.emptyList();
 	}
 
 	public List<String> getClaimedRoles() {
-		XmlClaimedRoles claimedRoles = signature.getClaimedRoles();
-		if ((claimedRoles != null) && CollectionUtils.isNotEmpty(claimedRoles.getClaimedRole())) {
-			return claimedRoles.getClaimedRole();
+		List<String> claimedRoles = signature.getClaimedRoles();
+		if (Utils.isCollectionNotEmpty(claimedRoles)) {
+			return claimedRoles;
 		}
 		return Collections.emptyList();
 	}
@@ -280,7 +303,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		if (policy != null) {
 			return policy.getProcessingError();
 		}
-		return StringUtils.EMPTY;
+		return Utils.EMPTY_STRING;
 	}
 
 	public boolean getPolicyStatus() {
@@ -296,7 +319,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		if (policy != null) {
 			return policy.getNotice();
 		}
-		return StringUtils.EMPTY;
+		return Utils.EMPTY_STRING;
 	}
 
 	public String getPolicyUrl() {
@@ -304,13 +327,13 @@ public class SignatureWrapper extends AbstractTokenProxy {
 		if (policy != null) {
 			return policy.getUrl();
 		}
-		return StringUtils.EMPTY;
+		return Utils.EMPTY_STRING;
 	}
 
 	public boolean isPolicyAsn1Processable() {
 		XmlPolicy policy = signature.getPolicy();
 		if (policy != null) {
-			return BooleanUtils.isTrue(policy.isAsn1Processable());
+			return Utils.isTrue(policy.isAsn1Processable());
 		}
 		return false;
 	}
@@ -318,7 +341,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	public boolean isPolicyIdentified() {
 		XmlPolicy policy = signature.getPolicy();
 		if (policy != null) {
-			return BooleanUtils.isTrue(policy.isIdentified());
+			return Utils.isTrue(policy.isIdentified());
 		}
 		return false;
 	}
@@ -326,7 +349,7 @@ public class SignatureWrapper extends AbstractTokenProxy {
 	public boolean isPolicyStatus() {
 		XmlPolicy policy = signature.getPolicy();
 		if (policy != null) {
-			return BooleanUtils.isTrue(policy.isStatus());
+			return Utils.isTrue(policy.isStatus());
 		}
 		return false;
 	}

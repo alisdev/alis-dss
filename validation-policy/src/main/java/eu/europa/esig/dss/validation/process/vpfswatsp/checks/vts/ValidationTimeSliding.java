@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.vpfswatsp.checks.vts;
 
 import java.util.Collections;
@@ -5,25 +25,26 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
-
 import eu.europa.esig.dss.jaxb.detailedreport.XmlRFC;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlVTS;
-import eu.europa.esig.dss.validation.TimestampReferenceCategory;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.validation.TimestampedObjectType;
 import eu.europa.esig.dss.validation.policy.Context;
 import eu.europa.esig.dss.validation.policy.SubContext;
 import eu.europa.esig.dss.validation.policy.ValidationPolicy;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
 import eu.europa.esig.dss.validation.process.Chain;
 import eu.europa.esig.dss.validation.process.ChainItem;
+import eu.europa.esig.dss.validation.process.bbb.sav.checks.CryptographicCheck;
 import eu.europa.esig.dss.validation.process.bbb.xcv.rfc.RevocationFreshnessChecker;
 import eu.europa.esig.dss.validation.process.vpfswatsp.POEExtraction;
-import eu.europa.esig.dss.validation.process.vpfswatsp.checks.vts.checks.SatisfyingRevocationDataExistsCheck;
 import eu.europa.esig.dss.validation.process.vpfswatsp.checks.vts.checks.POEExistsAtOrBeforeControlTimeCheck;
+import eu.europa.esig.dss.validation.process.vpfswatsp.checks.vts.checks.SatisfyingRevocationDataExistsCheck;
 import eu.europa.esig.dss.validation.reports.wrapper.CertificateWrapper;
 import eu.europa.esig.dss.validation.reports.wrapper.DiagnosticData;
 import eu.europa.esig.dss.validation.reports.wrapper.RevocationWrapper;
 import eu.europa.esig.dss.validation.reports.wrapper.TokenProxy;
+import eu.europa.esig.jaxb.policy.CryptographicConstraint;
 
 public class ValidationTimeSliding extends Chain<XmlVTS> {
 
@@ -68,7 +89,7 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 		controlTime = currentTime;
 
 		List<String> certificateChainIds = token.getCertificateChainIds();
-		if (CollectionUtils.isNotEmpty(certificateChainIds)) {
+		if (Utils.isCollectionNotEmpty(certificateChainIds)) {
 
 			/*
 			 * 2) For each certificate in the chain starting from the first
@@ -76,6 +97,8 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 			 */
 			Collections.reverse(certificateChainIds); // trusted_list -> ... ->
 														// signature
+
+			ChainItem<XmlVTS> item = null;
 
 			for (String certificateId : certificateChainIds) {
 				CertificateWrapper certificate = diagnosticData.getUsedCertificateById(certificateId);
@@ -105,18 +128,19 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 				 * return the indication INDETERMINATE with the sub-indication
 				 * NO_POE.
 				 */
-				RevocationWrapper latestCompliant = null;
+				RevocationWrapper latestCompliantRevocation = null;
 				Set<RevocationWrapper> revocations = certificate.getRevocationData();
 				for (RevocationWrapper revocation : revocations) {
-					if ((latestCompliant == null || revocation.getProductionDate().after(latestCompliant.getProductionDate()))
+					if ((latestCompliantRevocation == null || revocation.getProductionDate().after(latestCompliantRevocation.getProductionDate()))
 							&& isConsistant(certificate, revocation) && isIssuanceBeforeControlTime(revocation)) {
-						latestCompliant = revocation;
+						latestCompliantRevocation = revocation;
 					}
 				}
 
-				ChainItem<XmlVTS> item = satisfyingRevocationDataExists(latestCompliant);
-				if (firstItem == null) {
-					firstItem = item;
+				if (item == null) {
+					item = firstItem = satisfyingRevocationDataExists(latestCompliantRevocation);
+				} else {
+					item = item.setNextItem(satisfyingRevocationDataExists(latestCompliantRevocation));
 				}
 
 				/*
@@ -129,9 +153,9 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 				 * indication INDETERMINATE with the sub-indication
 				 * NO_POE.
 				 */
-				item = item.setNextItem(poeExistsAtOrBeforeControlTime(certificate, TimestampReferenceCategory.CERTIFICATE, controlTime));
+				item = item.setNextItem(poeExistsAtOrBeforeControlTime(certificate, TimestampedObjectType.CERTIFICATE, controlTime));
 
-				item = item.setNextItem(poeExistsAtOrBeforeControlTime(latestCompliant, TimestampReferenceCategory.REVOCATION, controlTime));
+				item = item.setNextItem(poeExistsAtOrBeforeControlTime(latestCompliantRevocation, TimestampedObjectType.REVOCATION, controlTime));
 
 				/*
 				 * c) The update of the value of control-time is as
@@ -153,11 +177,11 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 				 * Otherwise, the building block shall not change the
 				 * value of control-time.
 				 */
-				if (latestCompliant != null) {
+				if (latestCompliantRevocation != null) {
 					if (certificate.isRevoked()) {
-						controlTime = latestCompliant.getRevocationDate();
-					} else if (!isFresh(latestCompliant, controlTime)) {
-						controlTime = latestCompliant.getProductionDate();
+						controlTime = latestCompliantRevocation.getRevocationDate();
+					} else if (!isFresh(latestCompliantRevocation, controlTime)) {
+						controlTime = latestCompliantRevocation.getProductionDate();
 					}
 				}
 
@@ -170,7 +194,9 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 				 * shall set control-time to the lowest time up to which
 				 * the listed algorithms were considered reliable.
 				 */
-				// TODO crypto check
+				item = item.setNextItem(cryptographicCheck(certificate, controlTime));
+
+				item = item.setNextItem(cryptographicCheck(latestCompliantRevocation, controlTime));
 
 			}
 		}
@@ -192,8 +218,13 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 		return new SatisfyingRevocationDataExistsCheck(result, revocationData, getFailLevelConstraint());
 	}
 
-	private ChainItem<XmlVTS> poeExistsAtOrBeforeControlTime(TokenProxy token, TimestampReferenceCategory referenceCategory, Date controlTime) {
+	private ChainItem<XmlVTS> poeExistsAtOrBeforeControlTime(TokenProxy token, TimestampedObjectType referenceCategory, Date controlTime) {
 		return new POEExistsAtOrBeforeControlTimeCheck(result, token, referenceCategory, controlTime, poe, getFailLevelConstraint());
+	}
+
+	private ChainItem<XmlVTS> cryptographicCheck(TokenProxy token, Date validationTime) {
+		CryptographicConstraint constraint = policy.getCertificateCryptographicConstraint(context, SubContext.SIGNING_CERT);
+		return new CryptographicCheck<XmlVTS>(result, token, validationTime, constraint);
 	}
 
 	private boolean isConsistant(CertificateWrapper certificate, RevocationWrapper revocationData) {
@@ -201,18 +232,46 @@ public class ValidationTimeSliding extends Chain<XmlVTS> {
 		Date certNotAfter = certificate.getNotAfter();
 		Date thisUpdate = revocationData.getThisUpdate();
 
-		Date expiredCertsOnCRL = revocationData.getExpiredCertsOnCRL();
 		Date notAfterRevoc = thisUpdate;
+
+		/*
+		 * If a CRL contains the extension expiredCertsOnCRL defined in [i.12], it shall prevail over the TL
+		 * extension value but only for that specific CRL.
+		 */
+		Date expiredCertsOnCRL = revocationData.getExpiredCertsOnCRL();
 		if (expiredCertsOnCRL != null) {
 			notAfterRevoc = expiredCertsOnCRL;
 		}
 
+		/*
+		 * If an OCSP response contains the extension ArchiveCutoff defined in section 4.4.4 of
+		 * IETF RFC 6960 [i.11], it shall prevail over the TL extension value but only for that specific OCSP
+		 * response.
+		 */
 		Date archiveCutOff = revocationData.getArchiveCutOff();
 		if (archiveCutOff != null) {
 			notAfterRevoc = archiveCutOff;
 		}
 
-		return certNotBefore.before(thisUpdate) && (certNotAfter.compareTo(notAfterRevoc) >= 0);
+		/* expiredCertsRevocationInfo Extension from TL */
+		if (expiredCertsOnCRL != null && archiveCutOff != null) {
+			String revocationSigningCertificateId = revocationData.getSigningCertificateId();
+			CertificateWrapper revocCert = diagnosticData.getUsedCertificateById(revocationSigningCertificateId);
+			if (revocCert != null) {
+				Date expiredCertsRevocationInfo = revocCert.getCertificateTSPServiceExpiredCertsRevocationInfo();
+				if (expiredCertsRevocationInfo != null) {
+					notAfterRevoc = expiredCertsRevocationInfo;
+				}
+			}
+		}
+
+		/*
+		 * certHash extension can be present in an OCSP Response. If present, a digest match indicates the OCSP
+		 * responder knows the certificate as we have it, and so also its revocation state
+		 */
+		boolean certHashOK = revocationData.isCertHashExtensionPresent() && revocationData.isCertHashExtensionMatch();
+
+		return thisUpdate != null && certNotBefore.before(thisUpdate) && ((certNotAfter.compareTo(notAfterRevoc) >= 0) || certHashOK);
 	}
 
 	private boolean isIssuanceBeforeControlTime(RevocationWrapper revocationData) {

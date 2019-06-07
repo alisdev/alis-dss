@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -30,11 +30,11 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
-import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import eu.europa.esig.dss.DSSException;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.jaxb.policy.ConstraintsParameters;
 import eu.europa.esig.jaxb.policy.ObjectFactory;
 
@@ -42,8 +42,8 @@ public class ValidationResourceManager {
 
 	private static final Logger LOG = LoggerFactory.getLogger(ValidationResourceManager.class);
 
-	public static String defaultPolicyConstraintsLocation = "/policy/constraint.xml";
-	public static String defaultPolicyXsdLocation = "/xsd/policy.xsd";
+	public static final String defaultPolicyConstraintsLocation = "/policy/constraint.xml";
+	public static final String defaultPolicyXsdLocation = "/xsd/policy.xsd";
 
 	private static JAXBContext jaxbContext;
 
@@ -99,7 +99,7 @@ public class ValidationResourceManager {
 	 * @return
 	 */
 	public static ConstraintsParameters load(final String path) {
-		if (StringUtils.isEmpty(path)) {
+		if (Utils.isStringEmpty(path)) {
 			return null;
 		}
 		final InputStream fileInputStream = getResourceInputStream(path);

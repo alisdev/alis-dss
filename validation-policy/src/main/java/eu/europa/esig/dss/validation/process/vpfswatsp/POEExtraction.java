@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.vpfswatsp;
 
 import java.util.ArrayList;
@@ -7,14 +27,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
-
-import eu.europa.esig.dss.jaxb.diagnostic.XmlDigestAlgAndValueType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlSignedObjectsType;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlSignedSignature;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlTimestampedTimestamp;
-import eu.europa.esig.dss.validation.TimestampReferenceCategory;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlDigestAlgoAndValue;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlTimestampedObject;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.validation.TimestampedObjectType;
 import eu.europa.esig.dss.validation.reports.wrapper.CertificateWrapper;
 import eu.europa.esig.dss.validation.reports.wrapper.DiagnosticData;
 import eu.europa.esig.dss.validation.reports.wrapper.RevocationWrapper;
@@ -58,7 +74,7 @@ public class POEExtraction {
 		for (CertificateWrapper certificate : usedCertificates) {
 			addPOE(certificate.getId(), currentTime);
 			Set<RevocationWrapper> revocations = certificate.getRevocationData();
-			if (CollectionUtils.isNotEmpty(revocations)) {
+			if (Utils.isCollectionNotEmpty(revocations)) {
 				for (RevocationWrapper revocation : revocations) {
 					if (RevocationOrigin.SIGNATURE.name().equals(revocation.getOrigin())) {
 						addPOE(revocation.getId(), currentTime);
@@ -72,45 +88,38 @@ public class POEExtraction {
 
 		Date productionTime = timestamp.getProductionTime();
 
-		XmlSignedObjectsType signedObjects = timestamp.getSignedObjects();
-		if (signedObjects != null) {
-			if (CollectionUtils.isNotEmpty(signedObjects.getSignedSignature())) {
-				// SIGNATURES and TIMESTAMPS
-				for (XmlSignedSignature signedSignature : signedObjects.getSignedSignature()) {
-					addPOE(signedSignature.getId(), productionTime);
-				}
-				for (XmlTimestampedTimestamp timstampedTimastamp : signedObjects.getTimestampedTimestamp()) {
-					addPOE(timstampedTimastamp.getId(), productionTime);
-				}
-			}
+		List<XmlTimestampedObject> timestampedObjects = timestamp.getTimestampedObjects();
+		if (Utils.isCollectionNotEmpty(timestampedObjects)) {
 
-			if (CollectionUtils.isNotEmpty(signedObjects.getDigestAlgAndValue())) {
-				for (XmlDigestAlgAndValueType digestAlgoAndValue : signedObjects.getDigestAlgAndValue()) {
-					if (StringUtils.equals(TimestampReferenceCategory.CERTIFICATE.name(), digestAlgoAndValue.getCategory())) {
-						String certificateId = getCertificateIdByDigest(digestAlgoAndValue, diagnosticData);
-						if (certificateId != null) {
-							addPOE(certificateId, productionTime);
-						}
-					} else if (StringUtils.equals(TimestampReferenceCategory.REVOCATION.name(), digestAlgoAndValue.getCategory())) {
-						String revocationId = getRevocationIdByDigest(digestAlgoAndValue, diagnosticData);
-						if (revocationId != null) {
-							addPOE(revocationId, productionTime);
-						}
+			for (XmlTimestampedObject xmlTimestampedObject : timestampedObjects) {
+				if (Utils.isStringNotEmpty(xmlTimestampedObject.getId())) {
+					// SIGNATURES and TIMESTAMPS
+					addPOE(xmlTimestampedObject.getId(), productionTime);
+				} else if (TimestampedObjectType.CERTIFICATE == xmlTimestampedObject.getCategory()) {
+					String certificateId = getCertificateIdByDigest(xmlTimestampedObject.getDigestAlgoAndValue(), diagnosticData);
+					if (certificateId != null) {
+						addPOE(certificateId, productionTime);
+					}
+				} else if (TimestampedObjectType.REVOCATION == xmlTimestampedObject.getCategory()) {
+					String revocationId = getRevocationIdByDigest(xmlTimestampedObject.getDigestAlgoAndValue(), diagnosticData);
+					if (revocationId != null) {
+						addPOE(revocationId, productionTime);
 					}
 				}
 			}
+
 		}
 	}
 
-	private String getCertificateIdByDigest(XmlDigestAlgAndValueType digestAlgoValue, DiagnosticData diagnosticData) {
+	private String getCertificateIdByDigest(XmlDigestAlgoAndValue digestAlgoValue, DiagnosticData diagnosticData) {
 		List<CertificateWrapper> certificates = diagnosticData.getUsedCertificates();
-		if (CollectionUtils.isNotEmpty(certificates)) {
+		if (Utils.isCollectionNotEmpty(certificates)) {
 			for (CertificateWrapper certificate : certificates) {
-				List<XmlDigestAlgAndValueType> digestAlgAndValues = certificate.getDigestAlgAndValue();
-				if (CollectionUtils.isNotEmpty(digestAlgAndValues)) {
-					for (XmlDigestAlgAndValueType certificateDigestAndValue : digestAlgAndValues) {
-						if (StringUtils.equals(certificateDigestAndValue.getDigestMethod(), digestAlgoValue.getDigestMethod())
-								&& StringUtils.equals(certificateDigestAndValue.getDigestValue(), digestAlgoValue.getDigestValue())) {
+				List<XmlDigestAlgoAndValue> digestAlgAndValues = certificate.getDigestAlgoAndValues();
+				if (Utils.isCollectionNotEmpty(digestAlgAndValues)) {
+					for (XmlDigestAlgoAndValue certificateDigestAndValue : digestAlgAndValues) {
+						if (Utils.areStringsEqual(certificateDigestAndValue.getDigestMethod(), digestAlgoValue.getDigestMethod())
+								&& Utils.areStringsEqual(certificateDigestAndValue.getDigestValue(), digestAlgoValue.getDigestValue())) {
 							return certificate.getId();
 						}
 					}
@@ -120,17 +129,17 @@ public class POEExtraction {
 		return null;
 	}
 
-	private String getRevocationIdByDigest(XmlDigestAlgAndValueType digestAlgoValue, DiagnosticData diagnosticData) {
+	private String getRevocationIdByDigest(XmlDigestAlgoAndValue digestAlgoValue, DiagnosticData diagnosticData) {
 		List<CertificateWrapper> certificates = diagnosticData.getUsedCertificates();
-		if (CollectionUtils.isNotEmpty(certificates)) {
+		if (Utils.isCollectionNotEmpty(certificates)) {
 			for (CertificateWrapper certificate : certificates) {
 				Set<RevocationWrapper> revocations = certificate.getRevocationData();
-				if (CollectionUtils.isNotEmpty(revocations)) {
+				if (Utils.isCollectionNotEmpty(revocations)) {
 					for (RevocationWrapper revocationData : revocations) {
-						List<XmlDigestAlgAndValueType> digestAlgAndValues = revocationData.getDigestAlgAndValue();
-						for (XmlDigestAlgAndValueType revocDigestAndValue : digestAlgAndValues) {
-							if (StringUtils.equals(revocDigestAndValue.getDigestMethod(), digestAlgoValue.getDigestMethod())
-									&& StringUtils.equals(revocDigestAndValue.getDigestValue(), digestAlgoValue.getDigestValue())) {
+						List<XmlDigestAlgoAndValue> digestAlgAndValues = revocationData.getDigestAlgoAndValues();
+						for (XmlDigestAlgoAndValue revocDigestAndValue : digestAlgAndValues) {
+							if (Utils.areStringsEqual(revocDigestAndValue.getDigestMethod(), digestAlgoValue.getDigestMethod())
+									&& Utils.areStringsEqual(revocDigestAndValue.getDigestValue(), digestAlgoValue.getDigestValue())) {
 								return revocationData.getId();
 							}
 						}
@@ -160,7 +169,7 @@ public class POEExtraction {
 		List<Date> dates = poe.get(id);
 		if (dates != null) {
 			for (Date date : dates) {
-				if (date.compareTo(controlTime) <= 0) {
+				if (date.compareTo(controlTime) < 0) {
 					return true;
 				}
 			}

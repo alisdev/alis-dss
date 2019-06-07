@@ -34,14 +34,14 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="FAIL" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<KeyUsage Level="WARN">
 					<Id>nonRepudiation</Id>
 				</KeyUsage>
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Qualification Level="WARN" />
-				<SupportedBySSCD Level="WARN" />
+				<SupportedByQSCD Level="WARN" />
 				<IssuedToLegalPerson Level="INFORM" />
 				<Cryptographic Level="FAIL">
 					<AcceptableEncryptionAlgo>
@@ -69,7 +69,7 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="FAIL" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Cryptographic Level="FAIL">
@@ -116,7 +116,6 @@
 		</BasicSignatureConstraints>
 		<SignedAttributes>
 			<SigningCertificatePresent Level="FAIL" />
-			<SigningCertificateSigned Level="FAIL" />
 			<CertDigestPresent Level="FAIL" />
 			<CertDigestMatch Level="FAIL" />
 			<IssuerSerialMatch Level="WARN" />
@@ -138,12 +137,8 @@
 	</SignatureConstraints>
 	<Timestamp>
 		<TimestampDelay Level="FAIL" Unit="DAYS" Value="0" />
-		<MessageImprintDataFound Level="FAIL" />
-		<MessageImprintDataIntact Level="FAIL" />
 		<RevocationTimeAgainstBestSignatureTime	Level="FAIL" />
 		<BestSignatureTimeBeforeIssuanceDateOfSigningCertificate Level="FAIL" />
-		<SigningCertificateValidityAtBestSignatureTime Level="FAIL" />
-		<AlgorithmReliableAtBestSignatureTime Level="FAIL" />
 		<Coherence Level="WARN" />
 		<BasicSignatureConstraints>
 			<ReferenceDataExistence Level="FAIL" />
@@ -151,6 +146,7 @@
 			<SignatureIntact Level="FAIL" />
 			<ProspectiveCertificateChain Level="WARN" />
 			<TrustedServiceTypeIdentifier Level="WARN">
+				<Id>http://uri.etsi.org/TrstSvc/Svctype/CA/QC</Id>
 				<Id>http://uri.etsi.org/TrstSvc/Svctype/TSA</Id>
 				<Id>http://uri.etsi.org/TrstSvc/Svctype/TSA/QTST</Id>
 				<Id>http://uri.etsi.org/TrstSvc/Svctype/TSA/TSS-QC</Id>
@@ -169,7 +165,7 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="FAIL" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Cryptographic Level="FAIL">
@@ -198,7 +194,7 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="WARN" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Cryptographic Level="FAIL">
@@ -271,7 +267,7 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="FAIL" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Cryptographic Level="WARN">
@@ -300,7 +296,7 @@
 				<NotExpired Level="FAIL" />
 				<RevocationDataAvailable Level="WARN" />
 				<RevocationDataNextUpdatePresent Level="WARN" />
-				<RevocationDataFreshness Level="WARN" />
+				<RevocationDataFreshness Level="FAIL" />
 				<NotRevoked Level="FAIL" />
 				<NotOnHold Level="FAIL" />
 				<Cryptographic Level="FAIL">

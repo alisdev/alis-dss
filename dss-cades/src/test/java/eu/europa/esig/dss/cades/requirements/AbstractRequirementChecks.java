@@ -1,11 +1,28 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.cades.requirements;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.security.cert.X509Certificate;
-
-import org.apache.commons.io.IOUtils;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.ASN1Sequence;
@@ -16,16 +33,18 @@ import org.bouncycastle.asn1.cms.SignedData;
 import org.bouncycastle.asn1.cms.SignerInfo;
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.cert.X509CertificateHolder;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import eu.europa.esig.dss.DSSASN1Utils;
 import eu.europa.esig.dss.DSSDocument;
+import eu.europa.esig.dss.signature.PKIFactoryAccess;
+import eu.europa.esig.dss.utils.Utils;
+import eu.europa.esig.dss.x509.CertificateToken;
 
-public abstract class AbstractRequirementChecks {
+public abstract class AbstractRequirementChecks extends PKIFactoryAccess {
 
 	private static final Logger logger = LoggerFactory.getLogger(AbstractRequirementChecks.class);
 
@@ -50,7 +69,7 @@ public abstract class AbstractRequirementChecks {
 
 		signerInfo = SignerInfo.getInstance(ASN1Sequence.getInstance(signerInfosAsn1.getObjectAt(0)));
 
-		IOUtils.closeQuietly(asn1sInput);
+		Utils.closeQuietly(asn1sInput);
 	}
 
 	protected abstract DSSDocument getSignedDocument() throws Exception;
@@ -66,10 +85,8 @@ public abstract class AbstractRequirementChecks {
 		for (int i = 0; i < certificates.size(); i++) {
 			ASN1Sequence seqCertif = ASN1Sequence.getInstance(certificates.getObjectAt(i));
 			X509CertificateHolder certificateHolder = new X509CertificateHolder(seqCertif.getEncoded());
-			X509Certificate certificate = new JcaX509CertificateConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME).getCertificate(
-					certificateHolder);
-
-			certificate.checkValidity();
+			CertificateToken certificate = DSSASN1Utils.getCertificate(certificateHolder);
+			certificate.getCertificate().checkValidity();
 		}
 	}
 
@@ -98,7 +115,7 @@ public abstract class AbstractRequirementChecks {
 	}
 
 	/**
-	 *  signature-time-stamp shall be present in T/LT/LTA
+	 * signature-time-stamp shall be present in T/LT/LTA
 	 */
 	@Test
 	public void checkSignatureTimeStampPresent() {
@@ -112,13 +129,13 @@ public abstract class AbstractRequirementChecks {
 	public abstract void checkCertificateValue();
 
 	/**
-	 * complete-certificate-references  shall not be present (B/T 1 or 0 ; LT/LTA 0)
+	 * complete-certificate-references shall not be present (B/T 1 or 0 ; LT/LTA 0)
 	 */
 	@Test
 	public abstract void checkCompleteCertificateReference();
 
 	/**
-	 * revocation-values  shall not be present (B/T 1 or 0 ; LT/LTA 0)
+	 * revocation-values shall not be present (B/T 1 or 0 ; LT/LTA 0)
 	 */
 	@Test
 	public abstract void checkRevocationValues();
@@ -130,23 +147,29 @@ public abstract class AbstractRequirementChecks {
 	public abstract void checkCompleteRevocationReferences();
 
 	/**
-	 * 	CAdES-C-timestamp shall not be present (B/T >= 0 ; LT/LTA 0)
+	 * CAdES-C-timestamp shall not be present (B/T 0+ ; LT/LTA 0)
 	 */
 	@Test
 	public abstract void checkCAdESCTimestamp();
 
 	/**
-	 * 	time-stamped-certs-crls-references shall not be present (B/T >= 0 ; LT/LTA 0)
+	 * time-stamped-certs-crls-references shall not be present (B/T 0+ ; LT/LTA 0)
 	 */
 	@Test
 	public abstract void checkTimestampedCertsCrlsReferences();
+
+	/**
+	 * archive-time-stamp-v3 (B/T/LT 0; LTA 1+)
+	 */
+	@Test
+	public abstract void checkArchiveTimeStampV3();
 
 	protected boolean isSignedAttributeFound(ASN1ObjectIdentifier oid) {
 		return countSignedAttribute(oid) > 0;
 	}
 
 	protected boolean isUnsignedAttributeFound(ASN1ObjectIdentifier oid) {
-		return countUnsignedAttribute(oid) >0;
+		return countUnsignedAttribute(oid) > 0;
 	}
 
 	protected int countSignedAttribute(ASN1ObjectIdentifier oid) {

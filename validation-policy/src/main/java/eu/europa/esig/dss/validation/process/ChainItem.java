@@ -1,9 +1,28 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process;
 
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,7 +31,7 @@ import eu.europa.esig.dss.jaxb.detailedreport.XmlConstraint;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlConstraintsConclusion;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlName;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlStatus;
-import eu.europa.esig.dss.validation.MessageTag;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
 import eu.europa.esig.dss.validation.policy.rules.SubIndication;
 import eu.europa.esig.jaxb.policy.Level;
@@ -31,7 +50,7 @@ import eu.europa.esig.jaxb.policy.LevelConstraint;
  */
 public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 
-	private static final Logger logger = LoggerFactory.getLogger(ChainItem.class);
+	private static final Logger LOG = LoggerFactory.getLogger(ChainItem.class);
 
 	private ChainItem<T> nextItem;
 
@@ -90,7 +109,7 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 	 */
 	public void execute() {
 		if ((constraint == null) || (constraint.getLevel() == null)) {
-			logger.trace("Check skipped : constraint not defined");
+			LOG.trace("Check skipped : constraint not defined");
 			callNext();
 		} else {
 			switch (constraint.getLevel()) {
@@ -105,7 +124,7 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 				informOrWarn(constraint.getLevel());
 				break;
 			default:
-				logger.warn("Unknown level : " + constraint.getLevel());
+				LOG.warn("Unknown level : {}", constraint.getLevel());
 				break;
 			}
 		}
@@ -113,9 +132,9 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 
 	protected abstract boolean process();
 
-	protected abstract MessageTag getMessageTag();
+	protected abstract IMessageTag getMessageTag();
 
-	protected abstract MessageTag getErrorMessageTag();
+	protected abstract IMessageTag getErrorMessageTag();
 
 	protected List<XmlName> getPreviousErrors() {
 		return Collections.emptyList();
@@ -150,18 +169,10 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 		conclusion.setSubIndication(getFailedSubIndicationForConclusion());
 
 		List<XmlName> previousErrors = getPreviousErrors();
-		if (CollectionUtils.isNotEmpty(previousErrors)) {
+		if (Utils.isCollectionNotEmpty(previousErrors)) {
 			conclusion.getErrors().addAll(previousErrors);
-		}
-
-		MessageTag errorMessageTag = getErrorMessageTag();
-		if (errorMessageTag != null) {
-			XmlName errorMessage = new XmlName();
-			errorMessage.setNameId(errorMessageTag.name());
-			errorMessage.setValue(errorMessageTag.getMessage());
-			conclusion.getErrors().add(errorMessage);
 		} else {
-			logger.error("MessageTag is not defined!");
+			conclusion.getErrors().add(buildXmlName(getErrorMessageTag()));
 		}
 
 		result.setConclusion(conclusion);
@@ -177,27 +188,19 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 
 	private void recordConstraint(XmlStatus status) {
 		XmlConstraint xmlConstraint = new XmlConstraint();
-		xmlConstraint.setName(buildConstraintName());
+		xmlConstraint.setName(buildXmlName(getMessageTag()));
 		xmlConstraint.setStatus(status);
 		xmlConstraint.setId(bbbId);
 		if (XmlStatus.NOT_OK.equals(status) || XmlStatus.WARNING.equals(status) || XmlStatus.INFORMATION.equals(status)) {
-			xmlConstraint.setAdditionalInfo(getAdditionalInfo());
-			XmlName message = new XmlName();
-			MessageTag errorMessageTag = getErrorMessageTag();
-			if (errorMessageTag != null) {
-				message.setNameId(errorMessageTag.name());
-				message.setValue(errorMessageTag.getMessage());
-			} else {
-				logger.error("MessageTag is not defined!");
-			}
 			if (XmlStatus.NOT_OK.equals(status)) {
-				xmlConstraint.setError(message);
+				xmlConstraint.setError(buildXmlName(getErrorMessageTag()));
 			} else if (XmlStatus.WARNING.equals(status)) {
-				xmlConstraint.setWarning(message);
+				xmlConstraint.setWarning(buildXmlName(getErrorMessageTag()));
 			} else if (XmlStatus.INFORMATION.equals(status)) {
-				xmlConstraint.setInfo(message);
+				xmlConstraint.setInfo(buildXmlName(getErrorMessageTag()));
 			}
 		}
+		xmlConstraint.setAdditionalInfo(getAdditionalInfo());
 		addConstraint(xmlConstraint);
 	}
 
@@ -209,16 +212,15 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 		result.getConstraint().add(constraint);
 	}
 
-	private XmlName buildConstraintName() {
-		MessageTag tag = getMessageTag();
-		XmlName name = new XmlName();
-		if (tag != null) {
-			name.setNameId(tag.name());
-			name.setValue(tag.getMessage());
+	private XmlName buildXmlName(IMessageTag messageTag) {
+		XmlName xmlName = new XmlName();
+		if (messageTag != null) {
+			xmlName.setNameId(messageTag.getId());
+			xmlName.setValue(messageTag.getMessage());
 		} else {
-			logger.error("MessageTag is not defined!");
+			LOG.error("MessageTag is null");
 		}
-		return name;
+		return xmlName;
 	}
 
 	/**
@@ -278,6 +280,18 @@ public abstract class ChainItem<T extends XmlConstraintsConclusion> {
 
 	protected boolean isValidConclusion(XmlConclusion conclusion) {
 		return conclusion != null && Indication.PASSED.equals(conclusion.getIndication());
+	}
+
+	protected boolean isInvalidConclusion(XmlConclusion conclusion) {
+		return conclusion != null && Indication.FAILED.equals(conclusion.getIndication());
+	}
+
+	protected boolean isIndeterminateConclusion(XmlConclusion conclusion) {
+		return conclusion != null && Indication.INDETERMINATE.equals(conclusion.getIndication());
+	}
+
+	protected boolean isAcceptableConclusion(XmlConclusion conclusion) {
+		return conclusion != null && !Indication.FAILED.equals(conclusion.getIndication());
 	}
 
 }

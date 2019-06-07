@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -40,10 +40,22 @@ public class SignatureImageTextParameters {
 		TOP, BOTTOM, RIGHT, LEFT
 	}
 
+    /**
+     * Enum to define the more line text horizontal alignment
+     */
+    public enum SignerTextHorizontalAlignment {
+        LEFT, CENTER, RIGHT
+    }
+
 	/**
 	 * This variable allows to add signer name on the image (by default, LEFT)
 	 */
 	private SignerPosition signerNamePosition = SignerPosition.LEFT;
+
+    /**
+     * This variable set the more line text horizontal alignment
+     */
+    private SignerTextHorizontalAlignment signerTextHorizontalAlignment = SignerTextHorizontalAlignment.LEFT;
 
 	/**
 	 * This variable defines the text to sign
@@ -75,6 +87,14 @@ public class SignatureImageTextParameters {
 	public void setSignerNamePosition(SignerPosition signerNamePosition) {
 		this.signerNamePosition = signerNamePosition;
 	}
+
+    public SignerTextHorizontalAlignment getSignerTextHorizontalAlignment() {
+        return signerTextHorizontalAlignment;
+    }
+
+    public void setSignerTextHorizontalAlignment(SignerTextHorizontalAlignment signerTextHorizontalAlignment) {
+        this.signerTextHorizontalAlignment = signerTextHorizontalAlignment;
+    }
 
 	public Font getFont() {
 		return font;

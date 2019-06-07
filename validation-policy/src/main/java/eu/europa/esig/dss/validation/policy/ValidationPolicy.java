@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -229,6 +229,8 @@ public interface ValidationPolicy {
 
 	LevelConstraint getRevocationDataNextUpdatePresentConstraint(Context context, SubContext subContext);
 
+	LevelConstraint getCertificateRevocationFreshnessConstraint(Context context, SubContext subContext);
+
 	/**
 	 * @return {@code LevelConstraint} if Revoked for a given context element is present in the constraint file, null
 	 *         otherwise.
@@ -240,6 +242,10 @@ public interface ValidationPolicy {
 	 *         otherwise.
 	 */
 	LevelConstraint getCertificateNotOnHoldConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getCertificateNotSelfSignedConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getCertificateSelfSignedConstraint(Context context, SubContext subContext);
 
 	MultiValuesConstraint getTrustedServiceTypeIdentifierConstraint(Context context);
 
@@ -253,13 +259,12 @@ public interface ValidationPolicy {
 
 	/**
 	 * Indicates if the end user certificate used in validating the signature is mandated to be supported by a secure
-	 * signature creation device (SSCD) as
-	 * defined in Directive 1999/93/EC [9].
+	 * signature creation device (QSCD).
 	 *
-	 * @return {@code LevelConstraint} if SupportedBySSCD for a given context element is present in the constraint file,
+	 * @return {@code LevelConstraint} if SupportedByQSCD for a given context element is present in the constraint file,
 	 *         null otherwise.
 	 */
-	LevelConstraint getCertificateSupportedBySSCDConstraint(Context context, SubContext subContext);
+	LevelConstraint getCertificateSupportedByQSCDConstraint(Context context, SubContext subContext);
 
 	/**
 	 * @return {@code LevelConstraint} if IssuedToLegalPerson for a given context element is present in the constraint
@@ -272,12 +277,6 @@ public interface ValidationPolicy {
 	 *         null otherwise.
 	 */
 	LevelConstraint getSigningCertificateRecognitionConstraint(Context context);
-
-	/**
-	 * @return {@code LevelConstraint} if Signed for a given context element is present in the constraint file, null
-	 *         otherwise.
-	 */
-	LevelConstraint getSigningCertificateSignedConstraint(Context context);
 
 	/**
 	 * @return {@code LevelConstraint} if SigningCertificateAttribute for a given context element is present in the
@@ -321,19 +320,13 @@ public interface ValidationPolicy {
 	 */
 	LevelConstraint getSignatureIntactConstraint(Context context);
 
-	LevelConstraint getMessageImprintDataFoundConstraint();
-
-	LevelConstraint getMessageImprintDataIntactConstraint();
-
 	LevelConstraint getBestSignatureTimeBeforeIssuanceDateOfSigningCertificateConstraint();
-
-	LevelConstraint getSigningCertificateValidityAtBestSignatureTimeConstraint();
-
-	LevelConstraint getAlgorithmReliableAtBestSignatureTimeConstraint();
 
 	LevelConstraint getTimestampCoherenceConstraint();
 
-	TimeConstraint getTimestampDelaySigningTimePropertyConstraint();
+	TimeConstraint getTimestampDelayConstraint();
+
+	LevelConstraint getRevocationTimeAgainstBestSignatureTime();
 
 	TimeConstraint getRevocationFreshnessConstraint();
 
@@ -355,10 +348,50 @@ public interface ValidationPolicy {
 
 	MultiValuesConstraint getCertificatePseudonymConstraint(Context context, SubContext subContext);
 
+	LevelConstraint getCertificatePseudoUsageConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getCertificateSerialNumberConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getCertificateAuthorityInfoAccessPresentConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getCertificateRevocationInfoAccessPresentConstraint(Context context, SubContext subContext);
+
+	LevelConstraint getRevocationCertHashMatchConstraint(Context context, SubContext subContext);
+
 	MultiValuesConstraint getCertificatePolicyIdsConstraint(Context context, SubContext subContext);
 
 	MultiValuesConstraint getCertificateQCStatementIdsConstraint(Context context, SubContext subContext);
 
 	LevelConstraint getCertificateIssuedToNaturalPersonConstraint(Context context, SubContext subContext);
+
+	MultiValuesConstraint getAcceptedContainerTypesConstraint();
+
+	LevelConstraint getZipCommentPresentConstraint();
+
+	MultiValuesConstraint getAcceptedZipCommentsConstraint();
+
+	LevelConstraint getMimeTypeFilePresentConstraint();
+
+	MultiValuesConstraint getAcceptedMimeTypeContentsConstraint();
+
+	LevelConstraint getAllFilesSignedConstraint();
+
+	LevelConstraint getManifestFilePresentConstraint();
+
+	LevelConstraint getFullScopeConstraint();
+
+	/* Article 32 */
+
+	boolean isEIDASConstraintPresent();
+
+	TimeConstraint getTLFreshnessConstraint();
+
+	LevelConstraint getTLWellSignedConstraint();
+
+	LevelConstraint getTLNotExpiredConstraint();
+
+	ValueConstraint getTLVersionConstraint();
+
+	LevelConstraint getTLConsistencyConstraint();
 
 }

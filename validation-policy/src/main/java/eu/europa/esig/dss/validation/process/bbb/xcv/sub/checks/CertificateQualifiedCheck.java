@@ -1,15 +1,32 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.bbb.xcv.sub.checks;
 
-import java.util.List;
-
 import eu.europa.esig.dss.jaxb.detailedreport.XmlSubXCV;
-import eu.europa.esig.dss.validation.MessageTag;
-import eu.europa.esig.dss.validation.policy.CertificatePolicyIdentifiers;
-import eu.europa.esig.dss.validation.policy.QCStatementPolicyIdentifiers;
-import eu.europa.esig.dss.validation.policy.ServiceQualification;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
 import eu.europa.esig.dss.validation.policy.rules.SubIndication;
+import eu.europa.esig.dss.validation.process.CertificatePolicyIdentifiers;
 import eu.europa.esig.dss.validation.process.ChainItem;
+import eu.europa.esig.dss.validation.process.MessageTag;
+import eu.europa.esig.dss.validation.process.QCStatementPolicyIdentifiers;
 import eu.europa.esig.dss.validation.reports.wrapper.CertificateWrapper;
 import eu.europa.esig.jaxb.policy.LevelConstraint;
 
@@ -25,19 +42,13 @@ public class CertificateQualifiedCheck extends ChainItem<XmlSubXCV> {
 	@Override
 	protected boolean process() {
 
+		// This check only uses the certificate (not the TL)
+
 		boolean isQCCompliant = QCStatementPolicyIdentifiers.isQCCompliant(certificate);
 		boolean isQCP = CertificatePolicyIdentifiers.isQCP(certificate);
 		boolean isQCPPlus = CertificatePolicyIdentifiers.isQCPPlus(certificate);
 
-		/**
-		 * • The content of a Trusted service Status List;<br>
-		 * • The content of a Trusted List through information provided in the
-		 * Sie field of the applicable service entry;
-		 */
-		List<String> qualifiers = certificate.getCertificateTSPServiceQualifiers();
-		boolean isSIE = qualifiers.contains(ServiceQualification.QC_STATEMENT) || qualifiers.contains(ServiceQualification.QC_STATEMENT_119612);
-
-		return isQCCompliant || isQCP || isQCPPlus || isSIE;
+		return (isQCCompliant || isQCP || isQCPPlus);
 	}
 
 	@Override

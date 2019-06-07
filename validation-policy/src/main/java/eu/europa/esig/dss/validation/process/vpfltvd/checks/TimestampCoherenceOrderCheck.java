@@ -1,31 +1,50 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.vpfltvd.checks;
 
 import java.util.Date;
-import java.util.Set;
-
-import org.apache.commons.collections.CollectionUtils;
+import java.util.List;
 
 import eu.europa.esig.dss.jaxb.detailedreport.XmlValidationProcessLongTermData;
-import eu.europa.esig.dss.validation.MessageTag;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.policy.rules.Indication;
 import eu.europa.esig.dss.validation.policy.rules.SubIndication;
 import eu.europa.esig.dss.validation.process.ChainItem;
+import eu.europa.esig.dss.validation.process.MessageTag;
 import eu.europa.esig.dss.validation.reports.wrapper.TimestampWrapper;
 import eu.europa.esig.dss.x509.TimestampType;
 import eu.europa.esig.jaxb.policy.LevelConstraint;
 
 public class TimestampCoherenceOrderCheck extends ChainItem<XmlValidationProcessLongTermData> {
 
-	private final Set<TimestampWrapper> timestamps;
+	private final List<TimestampWrapper> timestamps;
 
-	public TimestampCoherenceOrderCheck(XmlValidationProcessLongTermData result, Set<TimestampWrapper> timestamps, LevelConstraint constraint) {
+	public TimestampCoherenceOrderCheck(XmlValidationProcessLongTermData result, List<TimestampWrapper> timestamps, LevelConstraint constraint) {
 		super(result, constraint);
 		this.timestamps = timestamps;
 	}
 
 	@Override
 	protected boolean process() {
-		if (CollectionUtils.size(timestamps) <= 1) {
+		if (Utils.collectionSize(timestamps) <= 1) {
 			return true;
 		}
 
@@ -53,27 +72,27 @@ public class TimestampCoherenceOrderCheck extends ChainItem<XmlValidationProcess
 
 		// Check content-timestamp against-signature timestamp
 		if ((latestContent != null) && (earliestSignature != null)) {
-			ok = ok && latestContent.before(earliestSignature);
+			ok = ok && !latestContent.after(earliestSignature); // before or equals
 		}
 
 		// Check signature-timestamp against validation-data and validation-data-refs-only timestamp
 		if ((latestSignature != null) && (earliestValidationData != null)) {
-			ok = ok && latestSignature.before(earliestValidationData);
+			ok = ok && !latestSignature.after(earliestValidationData);
 		}
 
 		// Check archive-timestamp
 		if ((latestSignature != null) && (earliestArchive != null)) {
-			ok = ok && earliestArchive.after(latestSignature);
+			ok = ok && !earliestArchive.before(latestSignature); // after or equals
 		}
 
 		if ((latestValidationData != null) && (earliestArchive != null)) {
-			ok = ok && earliestArchive.after(latestValidationData);
+			ok = ok && !earliestArchive.before(latestValidationData);
 		}
 
 		return ok;
 	}
 
-	private Date getLatestTimestampProductionDate(Set<TimestampWrapper> timestamps, TimestampType... selectedTimestampTypes) {
+	private Date getLatestTimestampProductionDate(List<TimestampWrapper> timestamps, TimestampType... selectedTimestampTypes) {
 		Date latestProductionTime = null;
 		for (TimestampWrapper timestamp : timestamps) {
 			if (isInSelectedTypes(selectedTimestampTypes, timestamp.getType())) {
@@ -86,7 +105,7 @@ public class TimestampCoherenceOrderCheck extends ChainItem<XmlValidationProcess
 		return latestProductionTime;
 	}
 
-	private Date getEarliestTimestampProductionTime(Set<TimestampWrapper> timestamps, TimestampType... selectedTimestampTypes) {
+	private Date getEarliestTimestampProductionTime(List<TimestampWrapper> timestamps, TimestampType... selectedTimestampTypes) {
 		Date earliestProductionTime = null;
 		for (TimestampWrapper timestamp : timestamps) {
 			if (isInSelectedTypes(selectedTimestampTypes, timestamp.getType())) {

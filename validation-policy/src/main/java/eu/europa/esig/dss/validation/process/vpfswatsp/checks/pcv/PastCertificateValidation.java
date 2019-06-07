@@ -1,14 +1,33 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.validation.process.vpfswatsp.checks.pcv;
 
 import java.util.Date;
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
-
 import eu.europa.esig.dss.jaxb.detailedreport.XmlBasicBuildingBlocks;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlPCV;
 import eu.europa.esig.dss.jaxb.detailedreport.XmlVTS;
-import eu.europa.esig.dss.jaxb.diagnostic.XmlChainCertificate;
+import eu.europa.esig.dss.jaxb.diagnostic.XmlChainItem;
+import eu.europa.esig.dss.utils.Utils;
 import eu.europa.esig.dss.validation.policy.Context;
 import eu.europa.esig.dss.validation.policy.SubContext;
 import eu.europa.esig.dss.validation.policy.ValidationPolicy;
@@ -94,8 +113,8 @@ public class PastCertificateValidation extends Chain<XmlPCV> {
 		Date intervalNotBefore = null;
 		Date intervalNotAfter = null;
 
-		List<XmlChainCertificate> certificateChain = token.getCertificateChain();
-		for (XmlChainCertificate certChainItem : certificateChain) {
+		List<XmlChainItem> certificateChain = token.getCertificateChain();
+		for (XmlChainItem certChainItem : certificateChain) {
 			CertificateWrapper certificate = diagnosticData.getUsedCertificateById(certChainItem.getId());
 			if (certificate.isTrusted()) {
 				// There is not need to check for the trusted certificate
@@ -103,7 +122,7 @@ public class PastCertificateValidation extends Chain<XmlPCV> {
 			}
 
 			SubContext subContext = SubContext.CA_CERTIFICATE;
-			if (StringUtils.equals(signingCertificateId, certChainItem.getId())) {
+			if (Utils.areStringsEqual(signingCertificateId, certChainItem.getId())) {
 				subContext = SubContext.SIGNING_CERT;
 			}
 
@@ -145,7 +164,7 @@ public class PastCertificateValidation extends Chain<XmlPCV> {
 		 */
 		if (controlTime != null) {
 			certificateChain = token.getCertificateChain();
-			for (XmlChainCertificate certChainItem : certificateChain) {
+			for (XmlChainItem certChainItem : certificateChain) {
 				CertificateWrapper certificate = diagnosticData.getUsedCertificateById(certChainItem.getId());
 				if (certificate.isTrusted()) {
 					// There is not need to check for the trusted certificate
@@ -153,7 +172,7 @@ public class PastCertificateValidation extends Chain<XmlPCV> {
 				}
 
 				SubContext subContext = SubContext.CA_CERTIFICATE;
-				if (StringUtils.equals(signingCertificateId, certChainItem.getId())) {
+				if (Utils.areStringsEqual(signingCertificateId, certChainItem.getId())) {
 					subContext = SubContext.SIGNING_CERT;
 				}
 
@@ -172,7 +191,7 @@ public class PastCertificateValidation extends Chain<XmlPCV> {
 
 	private ChainItem<XmlPCV> prospectiveCertificateChain() {
 		LevelConstraint constraint = policy.getProspectiveCertificateChainConstraint(context);
-		return new ProspectiveCertificateChainCheck(result, token, diagnosticData, constraint);
+		return new ProspectiveCertificateChainCheck(result, token, constraint);
 	}
 
 	private ChainItem<XmlPCV> certificateSignatureValid(CertificateWrapper certificate, SubContext subContext) {

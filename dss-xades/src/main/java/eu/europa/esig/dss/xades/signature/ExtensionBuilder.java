@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -24,9 +24,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 import eu.europa.esig.dss.DSSException;
+import eu.europa.esig.dss.DomUtils;
+import eu.europa.esig.dss.XAdESNamespaces;
 import eu.europa.esig.dss.validation.CertificateVerifier;
-import eu.europa.esig.dss.xades.DSSXMLUtils;
-import eu.europa.esig.dss.xades.XAdESNamespaces;
+import eu.europa.esig.dss.validation.SignatureCryptographicVerification;
 import eu.europa.esig.dss.xades.validation.XAdESSignature;
 
 public abstract class ExtensionBuilder extends XAdESBuilder {
@@ -73,29 +74,24 @@ public abstract class ExtensionBuilder extends XAdESBuilder {
 	/**
 	 * Returns or creates (if it does not exist) the UnsignedPropertiesType DOM object.
 	 *
-	 * @return
 	 * @throws DSSException
 	 */
-	protected void ensureUnsignedProperties() throws DSSException {
+	protected void ensureUnsignedProperties() {
 
-		final NodeList qualifyingPropertiesNodeList = currentSignatureDom.getElementsByTagNameNS(XAdESNamespaces.XAdES, "QualifyingProperties");
+		final NodeList qualifyingPropertiesNodeList = DomUtils.getNodeList(currentSignatureDom, xPathQueryHolder.XPATH_QUALIFYING_PROPERTIES);
 		if (qualifyingPropertiesNodeList.getLength() != 1) {
-
 			throw new DSSException("The signature does not contain QualifyingProperties element (or contains more than one)! Extension is not possible.");
 		}
 
 		qualifyingPropertiesDom = (Element) qualifyingPropertiesNodeList.item(0);
 
-		final NodeList unsignedPropertiesNodeList = currentSignatureDom.getElementsByTagNameNS(XAdESNamespaces.XAdES, "UnsignedProperties");
+		final NodeList unsignedPropertiesNodeList = DomUtils.getNodeList(currentSignatureDom, xPathQueryHolder.XPATH_UNSIGNED_PROPERTIES);
 		final int length = unsignedPropertiesNodeList.getLength();
 		if (length == 1) {
-
 			unsignedPropertiesDom = (Element) qualifyingPropertiesNodeList.item(0);
 		} else if (length == 0) {
-
-			unsignedPropertiesDom = DSSXMLUtils.addElement(documentDom, qualifyingPropertiesDom, XAdESNamespaces.XAdES, "xades:UnsignedProperties");
+			unsignedPropertiesDom = DomUtils.addElement(documentDom, qualifyingPropertiesDom, XAdESNamespaces.XAdES, "xades:UnsignedProperties");
 		} else {
-
 			throw new DSSException("The signature contains more then one UnsignedProperties element! Extension is not possible.");
 		}
 	}
@@ -103,21 +99,17 @@ public abstract class ExtensionBuilder extends XAdESBuilder {
 	/**
 	 * Returns or creates (if it does not exist) the UnsignedSignaturePropertiesType DOM object.
 	 *
-	 * @return
 	 * @throws DSSException
 	 */
-	protected void ensureUnsignedSignatureProperties() throws DSSException {
-
-		final NodeList unsignedSignaturePropertiesNodeList = currentSignatureDom.getElementsByTagNameNS(XAdESNamespaces.XAdES, "UnsignedSignatureProperties");
+	protected void ensureUnsignedSignatureProperties() {
+		final NodeList unsignedSignaturePropertiesNodeList = DomUtils.getNodeList(currentSignatureDom, xPathQueryHolder.XPATH_UNSIGNED_SIGNATURE_PROPERTIES);
 		final int length = unsignedSignaturePropertiesNodeList.getLength();
 		if (length == 1) {
-
 			unsignedSignaturePropertiesDom = (Element) unsignedSignaturePropertiesNodeList.item(0);
 		} else if (length == 0) {
-
-			unsignedSignaturePropertiesDom = DSSXMLUtils.addElement(documentDom, unsignedPropertiesDom, XAdESNamespaces.XAdES, "xades:UnsignedSignatureProperties");
+			unsignedSignaturePropertiesDom = DomUtils.addElement(documentDom, unsignedPropertiesDom, XAdESNamespaces.XAdES,
+					"xades:UnsignedSignatureProperties");
 		} else {
-
 			throw new DSSException("The signature contains more then one UnsignedSignatureProperties element! Extension is not possible.");
 		}
 	}
@@ -127,14 +119,22 @@ public abstract class ExtensionBuilder extends XAdESBuilder {
 	 *
 	 * @throws DSSException
 	 */
-	protected void ensureSignedDataObjectProperties() throws DSSException {
-
-		final NodeList signedDataObjectPropertiesNodeList = currentSignatureDom.getElementsByTagNameNS(XAdESNamespaces.XAdES, "SignedDataObjectProperties");
+	protected void ensureSignedDataObjectProperties() {
+		final NodeList signedDataObjectPropertiesNodeList = DomUtils.getNodeList(currentSignatureDom, xPathQueryHolder.XPATH_SIGNED_DATA_OBJECT_PROPERTIES);
 		final int length = signedDataObjectPropertiesNodeList.getLength();
 		if (length == 1) {
 			signedDataObjectPropertiesDom = (Element) signedDataObjectPropertiesNodeList.item(0);
-		} else if (length > 1 ) {
+		} else if (length > 1) {
 			throw new DSSException("The signature contains more than one SignedDataObjectProperties element! Extension is not possible.");
 		}
 	}
+
+	protected void assertSignatureValid(final XAdESSignature xadesSignature) {
+		SignatureCryptographicVerification signatureCryptographicVerification = xadesSignature.getSignatureCryptographicVerification();
+		if (!signatureCryptographicVerification.isSignatureIntact()) {
+			final String errorMessage = signatureCryptographicVerification.getErrorMessage();
+			throw new DSSException("Cryptographic signature verification has failed" + (errorMessage.isEmpty() ? "." : (" / " + errorMessage)));
+		}
+	}
+
 }

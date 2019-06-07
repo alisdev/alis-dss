@@ -1,19 +1,19 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
@@ -26,7 +26,6 @@ import java.net.URL;
 import java.util.List;
 
 import eu.europa.esig.dss.DSSDocument;
-import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.validation.executor.ProcessExecutor;
 import eu.europa.esig.dss.validation.executor.ValidationLevel;
 import eu.europa.esig.dss.validation.policy.ValidationPolicy;
@@ -39,20 +38,6 @@ import eu.europa.esig.jaxb.policy.ConstraintsParameters;
  *
  */
 public interface DocumentValidator {
-
-	/**
-	 * The document to validate, in the case of ASiC container this method returns the signature.
-	 *
-	 * @return {@code DSSDocument}
-	 */
-	DSSDocument getDocument();
-
-	/**
-	 * This method returns the {@code List} of the signed documents in the case of the detached signatures.
-	 *
-	 * @return the {@code List} of the detached document {@code DSSDocument}
-	 */
-	List<DSSDocument> getDetachedContents();
 
 	/**
 	 * Retrieves the signatures found in the document
@@ -85,11 +70,7 @@ public interface DocumentValidator {
 	 */
 	void defineSigningCertificate(final CertificateToken x509Certificate);
 
-	void setPolicyFile(final File policyDocument);
-
 	void setValidationLevel(ValidationLevel validationLevel);
-
-	void setPolicyFile(final String signatureId, final File policyDocument);
 
 	/**
 	 * This method provides the possibility to set the specific {@code ProcessExecutor}
@@ -97,6 +78,13 @@ public interface DocumentValidator {
 	 * @param processExecutor
 	 */
 	void setProcessExecutor(final ProcessExecutor processExecutor);
+
+	/**
+	 * This method allows to set a provider for Signature policies
+	 * 
+	 * @param signaturePolicyProvider
+	 */
+	void setSignaturePolicyProvider(SignaturePolicyProvider signaturePolicyProvider);
 
 	/**
 	 * Validates the document and all its signatures. The default constraint file is used.
@@ -166,25 +154,13 @@ public interface DocumentValidator {
 	Reports validateDocument(final ValidationPolicy validationPolicy);
 
 	/**
-	 * This method returns always {@code null} in case of the no ASiC containers.
-	 *
-	 * @return {@code SignedDocumentValidator} which corresponds to the next signature found within an ASiC-E container.
-	 *         {@code null} if there is no more signatures.
-	 */
-	DocumentValidator getNextValidator();
-
-	/**
-	 * @return
-	 */
-	DocumentValidator getSubordinatedValidator();
-
-	/**
-	 * This method returns the signed document without his signature
+	 * This method returns the signed document(s) without their signature(s)
 	 *
 	 * @param signatureId
 	 *            the id of the signature to be removed.
-	 * @throws DSSException
-	 *             the exception is thrown when the removal is not possible.
 	 */
-	DSSDocument getOriginalDocument(final String signatureId) throws DSSException;
+	List<DSSDocument> getOriginalDocuments(final String signatureId);
+
+	List<AdvancedSignature> processSignaturesValidation(ValidationContext validationContext, boolean structuralValidation);
+
 }

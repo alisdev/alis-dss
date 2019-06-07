@@ -1,22 +1,28 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2.1 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ * 
+ * Licensed under the EUPL, Version 1.1 or – as soon they
+ * will be approved by the European Commission - subsequent
+ * versions of the EUPL (the "Licence");
+ * 
+ * You may not use this work except in compliance with the
+ * Licence.
+ * 
+ * You may obtain a copy of the Licence at:
+ * 
+ * https://joinup.ec.europa.eu/software/page/eupl
+ * 
+ * Unless required by applicable law or agreed to in
+ * writing, software distributed under the Licence is
+ * distributed on an "AS IS" basis,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied.
+ * 
+ * See the Licence for the specific language governing
+ * permissions and limitations under the Licence.
  */
 package eu.europa.esig.dss.token.mocca;
 
@@ -31,7 +37,7 @@ import javax.smartcardio.Card;
 import javax.smartcardio.CardTerminal;
 
 import org.bouncycastle.asn1.ASN1EncodableVector;
-import org.bouncycastle.asn1.DERInteger;
+import org.bouncycastle.asn1.ASN1Integer;
 import org.bouncycastle.asn1.DERSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +51,7 @@ import eu.europa.esig.dss.DSSASN1Utils;
 import eu.europa.esig.dss.DSSException;
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.EncryptionAlgorithm;
+import eu.europa.esig.dss.MaskGenerationFunction;
 import eu.europa.esig.dss.SignatureAlgorithm;
 import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
@@ -69,11 +76,16 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 	 * SignatureAlgorithm property of the key after the connection has been opened (you can get the SignatureAlgorithm
 	 * name from the key)
 	 *
-	 * @param callback provides the PIN
+	 * @param callback
+	 *            provides the PIN
 	 */
 	public MOCCASignatureTokenConnection(PasswordInputCallback callback) {
 
 		this.callback = new PINGUIAdapter(callback);
+	}
+
+	public void set_signatureCards(List<SignatureCard> _signatureCards) {
+		this._signatureCards = _signatureCards;
 	}
 
 	@Override
@@ -113,7 +125,7 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 	public List<DSSPrivateKeyEntry> getKeys() throws DSSException {
 
 		List<DSSPrivateKeyEntry> list = getKeysSeveralCards();
-		if (list.size() == 0) {
+		if (list.isEmpty()) {
 
 			throw new DSSException("Cannot retrieve keys from the card!");
 		}
@@ -177,7 +189,7 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 		final EncryptionAlgorithm encryptionAlgo = moccaKey.getEncryptionAlgorithm();
 		final SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.getAlgorithm(encryptionAlgo, digestAlgorithm);
 
-		LOG.info("MOCCA>>>Signature algorithm: " + signatureAlgorithm.getJCEId());
+		LOG.info("MOCCA>>>Signature algorithm: {}", signatureAlgorithm.getJCEId());
 		try {
 
 			final KeyboxName keyboxName = moccaKey.getKeyboxName();
@@ -195,7 +207,12 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 		} catch (Exception e) {
 			throw new DSSException(e);
 		}
+	}
 
+	@Override
+	public SignatureValue sign(ToBeSigned toBeSigned, DigestAlgorithm digestAlgorithm, MaskGenerationFunction mgf, DSSPrivateKeyEntry keyEntry)
+			throws DSSException {
+		throw new UnsupportedOperationException();
 	}
 
 	/**
@@ -221,8 +238,8 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 
 		final ASN1EncodableVector v = new ASN1EncodableVector();
 
-		v.add(new DERInteger(r));
-		v.add(new DERInteger(s));
+		v.add(new ASN1Integer(r));
+		v.add(new ASN1Integer(s));
 
 		return DSSASN1Utils.getDEREncoded(new DERSequence(v));
 	}
@@ -230,4 +247,5 @@ public class MOCCASignatureTokenConnection implements SignatureTokenConnection {
 	public int getRetries() {
 		return callback.getRetries();
 	}
+
 }

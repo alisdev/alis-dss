@@ -1,3 +1,23 @@
+/**
+ * DSS - Digital Signature Services
+ * Copyright (C) 2015 European Commission, provided under the CEF programme
+ * 
+ * This file is part of the "DSS - Digital Signature Services" project.
+ * 
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ * 
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * Lesser General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this library; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 package eu.europa.esig.dss.test;
 
 import static org.junit.Assert.assertEquals;
@@ -10,12 +30,10 @@ import java.io.FileOutputStream;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import eu.europa.esig.dss.DSSUtils;
 import eu.europa.esig.dss.DigestAlgorithm;
 import eu.europa.esig.dss.FileDocument;
 import eu.europa.esig.dss.SignatureAlgorithm;
@@ -23,6 +41,7 @@ import eu.europa.esig.dss.SignatureValue;
 import eu.europa.esig.dss.ToBeSigned;
 import eu.europa.esig.dss.test.gen.CertificateService;
 import eu.europa.esig.dss.test.mock.MockPrivateKeyEntry;
+import eu.europa.esig.dss.utils.Utils;
 
 @Ignore("Only performance/support check. No need to be executed all the time")
 public class SignatureTest {
@@ -153,7 +172,7 @@ public class SignatureTest {
 		SignatureAlgorithm sigAlgo = SignatureAlgorithm.getAlgorithm(privateKeyEntry.getEncryptionAlgorithm(), digest);
 		SignatureValue signatureValue = TestUtils.sign(sigAlgo, privateKeyEntry, dataToSign);
 		assertNotNull(signatureValue);
-		assertTrue(ArrayUtils.isNotEmpty(signatureValue.getValue()));
+		assertTrue(Utils.isArrayNotEmpty(signatureValue.getValue()));
 		assertEquals(sigAlgo, signatureValue.getAlgorithm());
 	}
 
@@ -161,7 +180,7 @@ public class SignatureTest {
 		if (toBeSignedsByDigest.containsKey(digest)) {
 			return toBeSignedsByDigest.get(digest);
 		} else {
-			ToBeSigned dataToSign = new ToBeSigned(DSSUtils.digest(digest, dssDocument));
+			ToBeSigned dataToSign = new ToBeSigned(Utils.fromBase64(dssDocument.getDigest(digest)));
 			toBeSignedsByDigest.put(digest, dataToSign);
 			return dataToSign;
 		}

@@ -1,25 +1,26 @@
 /**
  * DSS - Digital Signature Services
  * Copyright (C) 2015 European Commission, provided under the CEF programme
- *
+ * 
  * This file is part of the "DSS - Digital Signature Services" project.
- *
+ * 
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
  * License as published by the Free Software Foundation; either
  * version 2.1 of the License, or (at your option) any later version.
- *
+ * 
  * This library is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Lesser General Public
  * License along with this library; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
  */
 package eu.europa.esig.dss.x509;
 
+import eu.europa.esig.dss.DSSDocument;
 import eu.europa.esig.dss.DigestAlgorithm;
 
 /**
@@ -41,8 +42,15 @@ public class SignaturePolicy {
 	public static final String IMPLICIT_POLICY = "IMPLICIT_POLICY";
 
 	private String identifier;
+
 	private DigestAlgorithm digestAlgorithm;
-	private byte[] digestValue;
+
+	/*
+	 * Base64 encoded digest value
+	 */
+	private String digestValue;
+
+	private DSSDocument policyContent;
 
 	/**
 	 * Two qualifiers for the signature policy have been identified so far:
@@ -63,18 +71,26 @@ public class SignaturePolicy {
 	 * The default constructor for SignaturePolicy.
 	 *
 	 * @param identifier
+	 *            the policy identifier
 	 */
 	public SignaturePolicy(final String identifier) {
 		this.identifier = identifier;
 	}
 
 	/**
-	 * @return the identifier
+	 * Returns the signature policy identifier
+	 * 
+	 * @return the signature policy identifier
 	 */
 	public String getIdentifier() {
 		return identifier;
 	}
 
+	/**
+	 * Returns the used digest algorithm to digest the signature policy
+	 * 
+	 * @return the used digest algorithm (or null)
+	 */
 	public DigestAlgorithm getDigestAlgorithm() {
 		return digestAlgorithm;
 	}
@@ -83,14 +99,24 @@ public class SignaturePolicy {
 		this.digestAlgorithm = digestAlgorithm;
 	}
 
-	public byte[] getDigestValue() {
+	/**
+	 * Returns the signature policy's digest value
+	 * 
+	 * @return the digest value of the signature policy (or null)
+	 */
+	public String getDigestValue() {
 		return digestValue;
 	}
 
-	public void setDigestValue(final byte[] digestValue) {
+	public void setDigestValue(final String digestValue) {
 		this.digestValue = digestValue;
 	}
 
+	/**
+	 * Returns the signature policy url (if found)
+	 * 
+	 * @return the url of the signature policy (or null if not available information)
+	 */
 	public String getUrl() {
 		return url;
 	}
@@ -105,6 +131,19 @@ public class SignaturePolicy {
 
 	public void setNotice(final String notice) {
 		this.notice = notice;
+	}
+
+	/**
+	 * Returns a DSSDocument with the signature policy content
+	 * 
+	 * @return a DSSDocument which contains the signature policy
+	 */
+	public DSSDocument getPolicyContent() {
+		return policyContent;
+	}
+
+	public void setPolicyContent(DSSDocument policyContent) {
+		this.policyContent = policyContent;
 	}
 
 }
